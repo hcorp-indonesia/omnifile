@@ -1,0 +1,8 @@
+{
+    "recommendations": [
+        "csharpier.csharpier-vscode",
+        "esbenp.prettier-vscode",
+        "ms-dotnettools.csharp",
+        "Vue.volar"
+    ]
+}

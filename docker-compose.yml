@@ -1,0 +1,66 @@
+services:
+    app:
+        build:
+            context: .
+            dockerfile: Dockerfile
+        container_name: magic-converter-app
+        restart: unless-stopped
+        ports:
+            - "8000:8000"
+        depends_on:
+            postgres:
+                condition: service_healthy
+            dragonfly:
+                condition: service_started
+        env_file:
+            - path: .env
+              required: false
+        environment:
+            - APP_ENV=${APP_ENV:-development}
+            - APP_HOST=0.0.0.0
+            - APP_PORT=8000
+            - DB_USER=${DB_USER:-postgres}
+            - DB_PASSWORD=${DB_PASSWORD:-password}
+            - DB_HOST=postgres
+            - DB_PORT=5432
+            - DB_NAME=${DB_NAME:-magic_converter}
+            - DB_SSL_MODE=disable
+            - DRAGONFLY_ADDR=dragonfly:6379
+            - DRAGONFLY_PASSWORD=
+            - DRAGONFLY_DB=0
+            - DRAGONFLY_KEY_PREFIX=magic_converter
+            - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-*}
+            - CORS_ALLOW_HEADERS=Origin, Content-Type, Accept, Authorization
+            - CORS_ALLOW_METHODS=GET,POST,DELETE,OPTIONS,PUT,PATCH
+            - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+
+    postgres:
+        image: postgres:17-alpine
+        container_name: magic-converter-db
+        restart: unless-stopped
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_USER: ${DB_USER:-postgres}
+            POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
+            POSTGRES_DB: ${DB_NAME:-magic_converter}
+        volumes:
+            - postgres_data:/var/lib/postgresql/data
+        healthcheck:
+            test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-magic_converter}"]
+            interval: 5s
+            timeout: 5s
+            retries: 5
+
+    dragonfly:
+        image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
+        container_name: magic-converter-cache
+        restart: unless-stopped
+        ports:
+            - "6379:6379"
+        volumes:
+            - dragonfly_data:/data
+
+volumes:
+    postgres_data:
+    dragonfly_data:

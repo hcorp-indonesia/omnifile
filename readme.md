@@ -1,76 +1,114 @@
-# 🚀 Integrative API J3 (Product Management)
+# 🪄 Magic Converter
 
-[![Go Version](https://img.shields.io/github/go-mod/go-version/vierohanz/integrative-api-j3?style=flat-square&color=00ADD8)](https://go.dev/)
-[![Fiber v3](https://img.shields.io/badge/Fiber-v3-00ADD8?style=flat-square&logo=go)](https://gofiber.io/)
-[![PostgreSQL](https://img.shields.io/badge/Database-PostgreSQL-336791?style=flat-square&logo=postgresql)](https://www.postgresql.org/)
-[![Redis](https://img.shields.io/badge/Cache-Redis-DC382D?style=flat-square&logo=redis)](https://redis.io/)
+Monorepo for **Magic Converter** — a unit conversion management system.
 
-A high-performance API specifically designed for **Product Management**, built with **Go Fiber v3**.
+- **Backend (`apps/api`)**: Go Fiber v3 API (PostgreSQL, Bun ORM, Redis/Dragonfly, S3/RustFS)
+- **Frontend (`apps/web`)**: React 19 SPA (Vite, TypeScript, Zustand, TanStack Query, Tailwind CSS v4)
 
 ---
 
-## ✨ Features
+## 🚀 Quick Start
 
-- 🏎️ **Go Fiber v3** - High-speed HTTP engine.
-- 🐘 **PostgreSQL & Bun ORM** - Efficient database mapping.
-- 🚀 **Redis & Dragonfly** - Fast data caching.
-- 📦 **RustFS / S3 / MinIO** - Scalable object storage.
-- 🏗️ **Clean Architecture** - Maintainable code structure.
-- 🛠️ **Built-in Migrator** - Easy database schema updates.
-- 📑 **Structured Logging** - Zerolog integration.
+### Prerequisites
+- [Go](https://go.dev/) 1.25+
+- [Bun](https://bun.sh/) 1.x+
+- PostgreSQL 15+
+- Redis / Dragonfly
+
+### 1. Setup Environment
+```bash
+cp apps/api/.env.example apps/api/.env
+```
+
+### 2. Install Frontend Dependencies
+```bash
+cd apps/web && bun install
+```
+
+### 3. Install Backend Dependencies
+```bash
+cd apps/api && go mod tidy
+```
+
+### 4. Run Migrations
+```bash
+cd apps/api && go run migrations/migrate.go
+# With seed data:
+cd apps/api && go run migrations/migrate.go --seed
+```
+
+### 5. Run Development Servers
+```bash
+# Frontend (http://localhost:5173)
+cd apps/web && bun dev
+
+# Backend (http://localhost:8000)
+cd apps/api && go run main.go
+```
 
 ---
 
 ## 📂 Project Structure
 
-```text
-├── app/
-│   ├── api/
-│   │   ├── controllers/    # Product handlers
-│   │   ├── services/       # Product business logic
-│   │   └── types/          # Product DTOs
-│   ├── models/             # Product models (Bun)
-│   ├── routes/             # Route registration
-│   └── shared/             # Shared utilities
-├── pkg/
-│   ├── client/             # Infrastructure clients
-│   ├── config/             # Configs
-│   ├── middlewares/        # Middlewares (Validation, etc.)
-│   └── utils/              # Utilities
-├── migrations/             # Migrations & runner
-└── hc/                     # Health check
 ```
-
----
-
-## 🚀 Getting Started
-
-### 1. Setup Environment
-```bash
-cp .env.example .env
-```
-
-### 2. Install & Run
-```bash
-go mod tidy
-go run migrations/migrate.go
-go run main.go
+magic-converter/
+├── apps/
+│   ├── api/                      # Go Fiber v3 Backend
+│   │   ├── app/
+│   │   │   ├── modules/          # Feature modules
+│   │   │   │   └── converter/    # Converter CRUD
+│   │   │   │       ├── model.go
+│   │   │   │       ├── types.go
+│   │   │   │       ├── service.go
+│   │   │   │       └── controller.go
+│   │   │   ├── routes/           # Route registration
+│   │   │   └── shared/           # Shared response helpers
+│   │   ├── pkg/
+│   │   │   ├── client/           # DB, Redis, S3 clients
+│   │   │   ├── config/           # Fiber configuration
+│   │   │   ├── middlewares/      # CORS, validation, etc.
+│   │   │   └── utils/            # Logger, server, env helpers
+│   │   ├── migrations/           # SQL migrations & runner
+│   │   ├── loader/               # Atlas schema loader
+│   │   ├── hc/                   # Health check binary
+│   │   └── main.go               # Entry point
+│   │
+│   └── web/                      # React Vite Frontend
+│       └── src/
+│           ├── components/       # UI components
+│           │   ├── common/       # PageLoader, etc.
+│           │   ├── converter/    # Converter-specific
+│           │   └── layout/       # Sidebar, Header, MainLayout
+│           ├── config/           # Navigation config
+│           ├── hooks/            # TanStack Query hooks
+│           ├── lib/              # Axios instance, utils
+│           ├── pages/            # Route pages
+│           ├── service/          # API service layer
+│           ├── store/            # Zustand stores
+│           ├── types/            # TypeScript interfaces
+│           ├── app.tsx           # Root component
+│           └── main.tsx          # Entry point
+│
+├── .oxlintrc.json                # OxLint config
+├── lefthook.yml                  # Git hooks
+├── Dockerfile                    # Multi-stage build
+└── docker-compose.yml            # Docker Compose
 ```
 
 ---
 
 ## 🛡️ API Endpoints
 
-| Category | Method | Endpoint | Description |
-| :--- | :--- | :--- | :--- |
-| **Product**| `GET` | `/api/v1/products` | List all products |
-| **Product**| `GET` | `/api/v1/products/:id`| Get product details |
-| **Product**| `POST` | `/api/v1/products` | Create new product |
-| **Product**| `PUT` | `/api/v1/products/:id`| Update product |
-| **Product**| `DELETE`| `/api/v1/products/:id`| Delete product |
-| **System**| `GET` | `/livez` | Health check |
+| Method   | Endpoint                | Description           |
+| :------- | :---------------------- | :-------------------- |
+| `GET`    | `/api/v1/converters`    | List all converters   |
+| `GET`    | `/api/v1/converters/:id`| Get converter detail  |
+| `POST`   | `/api/v1/converters`    | Create new converter  |
+| `PUT`    | `/api/v1/converters/:id`| Update converter      |
+| `DELETE` | `/api/v1/converters/:id`| Delete converter      |
+| `GET`    | `/livez`                | Health check          |
 
 ---
 
 ## 📄 License
-MIT License. Developed by **vierohanz**.
+MIT License.

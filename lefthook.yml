@@ -1,0 +1,15 @@
+# Lefthook Git Hooks Configuration
+# https://github.com/evilmartians/lefthook
+
+pre-push:
+  parallel: true
+  commands:
+    type-check:
+      root: apps/web
+      run: bunx tsc --noEmit
+    lint:
+      root: apps/web
+      run: bunx oxlint
+    go-build:
+      root: apps/api
+      run: go build ./...

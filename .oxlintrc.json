@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["react", "typescript", "unicorn", "oxc"],
+  "categories": {
+    "correctness": "error"
+  },
+  "rules": {
+    "react/react-in-jsx-scope": "off",
+    "react/jsx-key": "error",
+    "react/no-unknown-property": "error",
+    "react/set-state-in-effect": "off",
+    "react/no-array-index-key": "off",
+    "react/no-object-type-as-default-prop": "off",
+    "react/exhaustive-effect-dependencies": "warn",
+    "typescript/no-explicit-any": "off",
+    "unicorn/consistent-function-scoping": "off"
+  },
+  "ignorePatterns": ["dist/**", "node_modules/**"]
+}
