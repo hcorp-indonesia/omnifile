@@ -1,4 +1,4 @@
-import { LayoutDashboard, ArrowRightLeft } from 'lucide-react';
+import { LayoutDashboard, ArrowRightLeft, ImagePlus } from 'lucide-react';
 
 export interface NavItem {
   label: string;
@@ -16,5 +16,10 @@ export const navigation: NavItem[] = [
     label: 'Converters',
     path: '/converters',
     icon: ArrowRightLeft,
+  },
+  {
+    label: 'Media Tools',
+    path: '/media-tools',
+    icon: ImagePlus,
   },
 ];

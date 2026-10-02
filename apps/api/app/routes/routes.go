@@ -2,6 +2,7 @@ package routes
 
 import (
 	"magic-converter/app/modules/converter"
+	"magic-converter/app/modules/media"
 
 	"github.com/gofiber/fiber/v3"
 )
@@ -9,6 +10,7 @@ import (
 func RegisterRoutes(
 	app *fiber.App,
 	converterController *converter.ConverterController,
+	mediaController *media.MediaController,
 ) {
 	const ApiVersion = "/api/v1"
 
@@ -20,4 +22,9 @@ func RegisterRoutes(
 	converters.Post("", converterController.Create)
 	converters.Put("/:id", converterController.Update)
 	converters.Delete("/:id", converterController.Delete)
+
+	mediaRoutes := api.Group("/media")
+	mediaRoutes.Post("/convert", mediaController.Convert)
+	mediaRoutes.Post("/remove-bg", mediaController.RemoveBG)
+	mediaRoutes.Post("/upscale", mediaController.Upscale)
 }

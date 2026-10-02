@@ -1,32 +1,53 @@
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { cn } from '@/lib/utils';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-surface-50 px-4 dark:bg-surface-950">
-      <div className="text-center">
-        <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary-500 to-accent-500 shadow-2xl shadow-primary-500/30">
-          <Sparkles className="h-10 w-10 text-white" />
+    <div className={cn("flex", "min-h-screen", "flex-col", "items-center", "justify-center", "bg-[#fdfbf7]", "dark:bg-[#0e1015]", "px-4")}>
+      <div className={cn("text-center")}>
+        <div className={cn("mx-auto", "mb-6", "flex", "h-20", "w-20", "items-center", "justify-center", "rounded-2xl", "bg-yellow-400", "border-3", "border-gray-900", "dark:border-gray-700", "shadow-[4px_4px_0_0_#111827]", "dark:shadow-[4px_4px_0_0_#000]")}>
+          <Sparkles className={cn("h-10", "w-10", "text-gray-900")} />
         </div>
 
-        <h1 className="text-8xl font-extrabold bg-gradient-to-r from-primary-500 via-accent-500 to-primary-500 bg-clip-text text-transparent">
+        <h1 className={cn("text-8xl", "font-black", "text-gray-900", "dark:text-white", "tracking-tight")}>
           404
         </h1>
-        <h2 className="mt-4 text-xl font-semibold text-surface-900 dark:text-surface-100">
+        <h2 className={cn("mt-4", "text-2xl", "font-bold", "text-gray-900", "dark:text-white")}>
           Page not found
         </h2>
-        <p className="mt-2 max-w-md text-sm text-surface-500 dark:text-surface-400">
+        <p className={cn("mt-2", "max-w-md", "text-base", "font-semibold", "text-gray-600", "dark:text-gray-400")}>
           The page you're looking for doesn't exist or has been moved.
         </p>
 
         <button
           id="go-back-btn"
           onClick={() => navigate('/dashboard')}
-          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-3 text-sm font-medium text-white shadow-lg shadow-primary-500/25 transition-all hover:shadow-xl hover:shadow-primary-500/30 hover:-translate-y-0.5"
+          className={cn(
+            "mt-8",
+            "inline-flex",
+            "items-center",
+            "gap-2",
+            "rounded-xl",
+            "bg-purple-400",
+            "border-3",
+            "border-gray-900",
+            "dark:border-gray-700",
+            "px-6",
+            "py-3.5",
+            "text-base",
+            "font-bold",
+            "text-gray-900",
+            "shadow-[4px_4px_0_0_#111827]",
+            "dark:shadow-[4px_4px_0_0_#000]",
+            "transition-all",
+            "hover:bg-purple-500",
+            "hover:-translate-y-1"
+          )}
         >
-          <ArrowLeft className="h-4 w-4" />
+          <ArrowLeft className={cn("h-5", "w-5")} />
           Back to Dashboard
         </button>
       </div>

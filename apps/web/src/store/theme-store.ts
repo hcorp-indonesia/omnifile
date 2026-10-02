@@ -9,14 +9,57 @@ interface ThemeState {
   setTheme: (theme: Theme) => void;
 }
 
+const applyThemeToDOM = (theme: Theme) => {
+  if (typeof document !== 'undefined') {
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(theme);
+    root.style.colorScheme = theme;
+  }
+};
+
+const getInitialTheme = (): Theme => {
+  if (typeof window !== 'undefined') {
+    try {
+      const stored = localStorage.getItem('mc-theme');
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed?.state?.theme) {
+          return parsed.state.theme;
+        }
+      }
+    } catch {
+      // fallback
+    }
+    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'dark';
+    }
+  }
+  return 'light';
+};
+
 export const useThemeStore = create<ThemeState>()(
   persist(
     (set) => ({
-      theme: 'light',
+      theme: getInitialTheme(),
       toggleTheme: () =>
-        set((state) => ({ theme: state.theme === 'light' ? 'dark' : 'light' })),
-      setTheme: (theme) => set({ theme }),
+        set((state) => {
+          const next = state.theme === 'light' ? 'dark' : 'light';
+          applyThemeToDOM(next);
+          return { theme: next };
+        }),
+      setTheme: (theme) => {
+        applyThemeToDOM(theme);
+        set({ theme });
+      },
     }),
-    { name: 'mc-theme' }
+    {
+      name: 'mc-theme',
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          applyThemeToDOM(state.theme);
+        }
+      },
+    }
   )
 );

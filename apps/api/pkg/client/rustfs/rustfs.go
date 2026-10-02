@@ -2,6 +2,7 @@ package rustfs
 
 import (
 	"context"
+	"io"
 	"os"
 	"strings"
 	"time"
@@ -85,4 +86,10 @@ func (s *RustfsClient) GetPresignedUploadURL(key string, contentType string) (st
 
 func (s *RustfsClient) DeleteObject(key string) error {
 	return s.Client.RemoveObject(context.Background(), BucketNameEnv, key, minio.RemoveObjectOptions{})
+}
+
+func (s *RustfsClient) UploadFile(ctx context.Context, key string, reader io.Reader, objectSize int64, contentType string) (minio.UploadInfo, error) {
+	return s.Client.PutObject(ctx, BucketNameEnv, key, reader, objectSize, minio.PutObjectOptions{
+		ContentType: contentType,
+	})
 }

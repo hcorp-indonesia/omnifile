@@ -9,6 +9,10 @@ import MainLayout from '@/components/layout/main-layout';
 // Lazy loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const ConvertersPage = lazy(() => import('@/pages/converters'));
+const MediaToolsPage = lazy(() => import('@/pages/media-tools'));
+const PDFPage = lazy(() => import('@/pages/pdf'));
+const LoginPage = lazy(() => import('@/pages/login'));
+const RegisterPage = lazy(() => import('@/pages/register'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 export const App: React.FC = () => {
@@ -45,6 +49,10 @@ export const App: React.FC = () => {
             <Route element={<MainLayout />}>
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/converters" element={<ConvertersPage />} />
+              <Route path="/media-tools" element={<MediaToolsPage />} />
+              <Route path="/pdf" element={<PDFPage />} />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/register" element={<RegisterPage />} />
             </Route>
 
             <Route path="*" element={<NotFoundPage />} />

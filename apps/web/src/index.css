@@ -1,7 +1,9 @@
+@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap");
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 
   --color-primary-50: #eef2ff;
   --color-primary-100: #e0e7ff;
@@ -31,12 +33,6 @@
   --color-accent-600: #db2777;
 }
 
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
-}
-
 body {
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -45,6 +41,20 @@ body {
 
 html.dark {
   color-scheme: dark;
+}
+
+::selection {
+  -webkit-text-fill-color: initial;
+}
+
+[class*="bg-clip-text"]::selection {
+  -webkit-text-fill-color: #111827 !important;
+  color: #111827 !important;
+}
+
+.dark [class*="bg-clip-text"]::selection {
+  -webkit-text-fill-color: #111827 !important;
+  color: #111827 !important;
 }
 
 /* Scrollbar styling */
@@ -64,4 +74,49 @@ html.dark {
 
 .dark ::-webkit-scrollbar-thumb {
   background: var(--color-surface-600);
+}
+
+@keyframes loader-bar-slide {
+  0% {
+    left: -35%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+.animate-loader-bar {
+  animation: loader-bar-slide 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+@keyframes watermark-breathe-left {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(22deg) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) rotate(24deg) scale(1.02);
+  }
+}
+
+@keyframes watermark-breathe-right {
+  0%,
+  100% {
+    transform: translateY(0px) rotate(-18deg) scale(1);
+  }
+  50% {
+    transform: translateY(-8px) rotate(-20deg) scale(1.02);
+  }
+}
+
+.animate-watermark-left {
+  transform: rotate(22deg);
+  animation: watermark-breathe-left 6s ease-in-out infinite;
+  will-change: transform;
+}
+
+.animate-watermark-right {
+  transform: rotate(-18deg);
+  animation: watermark-breathe-right 7s ease-in-out -3.5s infinite;
+  will-change: transform;
 }

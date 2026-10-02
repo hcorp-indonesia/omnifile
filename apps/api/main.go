@@ -2,6 +2,7 @@ package main
 
 import (
 	"magic-converter/app/modules/converter"
+	"magic-converter/app/modules/media"
 	"magic-converter/app/routes"
 	"magic-converter/app/shared"
 	"magic-converter/pkg/client/db"
@@ -29,6 +30,9 @@ func main() {
 	c.Provide(converter.NewConverterService)
 	c.Provide(converter.NewConverterController)
 
+	c.Provide(media.NewMediaService)
+	c.Provide(media.NewMediaController)
+
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
 		cfg.ErrorHandler = shared.RespondError
@@ -48,10 +52,11 @@ func main() {
 	c.Invoke(func(
 		app *fiber.App,
 		converterController *converter.ConverterController,
+		mediaController *media.MediaController,
 		dbClient *bun.DB,
 		dragonflyClient *dragonfly.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, converterController)
+		routes.RegisterRoutes(app, converterController, mediaController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

@@ -1,0 +1,23 @@
+{
+  "name": "magic-converter",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,magenta \"bun run dev:api\" \"bun run dev:web\"",
+    "dev:api": "cd apps/api && go run main.go",
+    "dev:web": "cd apps/web && bunx --bun vite",
+    "build:web": "cd apps/web && bun run build",
+    "lint": "concurrently \"bun run lint:api\" \"bun run lint:web\"",
+    "lint:api": "cd apps/api && go fmt ./... && go vet ./...",
+    "lint:web": "cd apps/web && bunx oxlint",
+    "scan": "trivy fs --scanners vuln,secret,config .",
+    "type-check": "cd apps/web && bunx tsc --noEmit",
+    "migrate": "cd apps/api && go run migrations/migrate.go",
+    "migrate:seed": "cd apps/api && go run migrations/migrate.go --seed",
+    "postinstall": "cd apps/web && bun install"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
