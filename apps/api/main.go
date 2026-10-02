@@ -1,16 +1,13 @@
 package main
 
 import (
-	"magic-converter/app/modules/converter"
-	"magic-converter/app/modules/media"
-	"magic-converter/app/routes"
-	"magic-converter/app/shared"
-	"magic-converter/pkg/client/db"
-	"magic-converter/pkg/client/dragonfly"
-	"magic-converter/pkg/client/rustfs"
-	"magic-converter/pkg/config"
-	"magic-converter/pkg/middlewares"
-	"magic-converter/pkg/utils"
+	"magic-converter/config"
+	"magic-converter/src/middleware"
+	"magic-converter/src/modules/auth"
+	"magic-converter/src/modules/converter"
+	"magic-converter/src/modules/media"
+	"magic-converter/src/routes"
+	"magic-converter/src/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
@@ -21,11 +18,13 @@ import (
 )
 
 func main() {
+	utils.LoadEnv()
+
 	c := dig.New()
 
-	c.Provide(db.New)
-	c.Provide(dragonfly.New)
-	c.Provide(rustfs.New)
+	c.Provide(config.NewDatabase)
+	c.Provide(utils.NewDragonflyClient)
+	c.Provide(utils.NewRustfsClient)
 
 	c.Provide(converter.NewConverterService)
 	c.Provide(converter.NewConverterController)
@@ -33,16 +32,20 @@ func main() {
 	c.Provide(media.NewMediaService)
 	c.Provide(media.NewMediaController)
 
+	c.Provide(auth.NewAuthService)
+	c.Provide(auth.NewSMTPMailer)
+	c.Provide(auth.NewAuthController)
+
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
-		cfg.ErrorHandler = shared.RespondError
+		cfg.ErrorHandler = utils.RespondError
 
 		app := fiber.New(cfg)
 
 		app.Use(compress.New(compress.Config{
 			Level: compress.LevelBestSpeed,
 		}))
-		middlewares.FiberMiddleware(app)
+		middleware.FiberMiddleware(app)
 
 		app.Get(healthcheck.LivenessEndpoint, healthcheck.New())
 
@@ -53,10 +56,11 @@ func main() {
 		app *fiber.App,
 		converterController *converter.ConverterController,
 		mediaController *media.MediaController,
+		authController *auth.AuthController,
 		dbClient *bun.DB,
-		dragonflyClient *dragonfly.DragonflyClient,
+		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, converterController, mediaController)
+		routes.RegisterRoutes(app, converterController, mediaController, authController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

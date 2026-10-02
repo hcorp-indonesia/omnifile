@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import { ArrowRight, FileText, Image, RefreshCw } from "lucide-react";
+import { ArrowRight, FileText, Image, Music2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
 const features = [
@@ -17,15 +17,15 @@ const features = [
       "Automatically remove photo backgrounds with AI, upscale resolution to HD.",
     icon: Image,
     bg: "bg-purple-400",
-    path: "/media-tools",
+    path: "/image",
   },
   {
-    title: "Convert",
+    title: "Audio",
     description:
-      "Transform media file formats (images, audio, documents) and convert unit values instantly.",
-    icon: RefreshCw,
+      "Audio conversion and optimization tools are coming soon.",
+    icon: Music2,
     bg: "bg-yellow-400",
-    path: "/media-tools",
+    path: "/audio",
   },
 ];
 
@@ -164,12 +164,12 @@ export default function DashboardPage() {
               "mx-auto",
             )}
           >
-            Convert formats, remove backgrounds, and upscale images for free,
-            fast, and secure.
+            Convert images, remove backgrounds, and upscale photos for free,
+            fast, and secure. Audio tools are coming soon.
           </p>
         </div>
 
-        {/* Feature Cards Grid (PDF, Image, Convert) */}
+        {/* Feature Cards Grid (PDF, Image, Audio) */}
         <div className={cn("grid", "gap-8", "md:grid-cols-3", "pt-8")}>
           {features.map((feature) => (
             <Link

@@ -1,19 +1,201 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Toaster } from 'sonner';
-import { useThemeStore } from '@/store/theme-store';
 import PageLoader from '@/components/common/page-loader';
 import MainLayout from '@/components/layout/main-layout';
+import { cn } from '@/lib/utils';
+import { useThemeStore } from '@/store/theme-store';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { X } from 'lucide-react';
+import { Suspense, lazy, useEffect, useState } from 'react';
+import {
+  BrowserRouter,
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+  type Location,
+} from 'react-router-dom';
+import { Toaster } from 'sonner';
 
-// Lazy loaded pages
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
-const ConvertersPage = lazy(() => import('@/pages/converters'));
-const MediaToolsPage = lazy(() => import('@/pages/media-tools'));
+const AudioPage = lazy(() => import('@/pages/audio'));
+const ImagePage = lazy(() => import('@/pages/media-tools'));
+
 const PDFPage = lazy(() => import('@/pages/pdf'));
 const LoginPage = lazy(() => import('@/pages/login'));
 const RegisterPage = lazy(() => import('@/pages/register'));
+const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'));
+const ResetPasswordPage = lazy(() => import('@/pages/reset-password'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
+
+type AuthLocationState = {
+  backgroundLocation?: Location;
+};
+
+function AuthOverlay({
+  backgroundLocation,
+  children,
+}: {
+  backgroundLocation?: Location;
+  children: React.ReactNode;
+}) {
+  const navigate = useNavigate();
+  const closeOverlay = () => {
+    if (backgroundLocation) {
+      navigate(backgroundLocation, { replace: true });
+      return;
+    }
+
+    navigate(-1);
+  };
+
+  useEffect(() => {
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeOverlay();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [backgroundLocation, navigate]);
+
+  return (
+    <div
+      className={cn(
+        'fixed',
+        'inset-0',
+        'z-50',
+        'overflow-y-auto',
+        'bg-gray-950/35',
+        'p-4',
+        'backdrop-blur-md',
+        'sm:p-8',
+      )}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Authentication"
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) {
+          closeOverlay();
+        }
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Close authentication dialog"
+        onClick={closeOverlay}
+        className={cn(
+          'fixed',
+          'right-4',
+          'top-4',
+          'z-10',
+          'flex',
+          'h-11',
+          'w-11',
+          'items-center',
+          'justify-center',
+          'rounded-xl',
+          'border-3',
+          'border-gray-900',
+          'bg-white',
+          'text-gray-900',
+          'shadow-[4px_4px_0_0_#111827]',
+          'cursor-pointer',
+          'dark:border-gray-700',
+          'dark:bg-[#16181d]',
+          'dark:text-white',
+          'dark:shadow-[4px_4px_0_0_#000]',
+        )}
+      >
+        <X className={cn('h-5', 'w-5')} />
+      </button>
+      <div
+        className={cn('flex', 'min-h-full', 'items-center', 'justify-center')}
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) {
+            closeOverlay();
+          }
+        }}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AppRoutes() {
+  const location = useLocation();
+  const locationState = location.state as AuthLocationState | null;
+  const isAuthRoute =
+    location.pathname === '/login' ||
+    location.pathname === '/register' ||
+    location.pathname === '/forgot-password' ||
+    location.pathname === '/reset-password';
+  const fallbackBackground = isAuthRoute
+    ? { ...location, pathname: '/dashboard', search: '', hash: '' }
+    : location;
+  const backgroundLocation = locationState?.backgroundLocation ?? fallbackBackground;
+
+  return (
+    <>
+      <Routes location={backgroundLocation}>
+        <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
+        <Route element={<MainLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/audio" element={<AudioPage />} />
+          <Route path="/image" element={<ImagePage />} />
+          <Route path="/pdf" element={<PDFPage />} />
+        </Route>
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+
+      {isAuthRoute && (
+        <Routes>
+          <Route
+            path="/login"
+            element={
+              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
+                <LoginPage />
+              </AuthOverlay>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
+                <RegisterPage />
+              </AuthOverlay>
+            }
+          />
+          <Route
+            path="/forgot-password"
+            element={
+              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
+                <ForgotPasswordPage />
+              </AuthOverlay>
+            }
+          />
+          <Route
+            path="/reset-password"
+            element={
+              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
+                <ResetPasswordPage />
+              </AuthOverlay>
+            }
+          />
+        </Routes>
+      )}
+    </>
+  );
+}
 
 export const App: React.FC = () => {
   const theme = useThemeStore((state) => state.theme);
@@ -43,20 +225,7 @@ export const App: React.FC = () => {
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <Suspense fallback={<PageLoader />}>
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-
-            <Route element={<MainLayout />}>
-              <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/converters" element={<ConvertersPage />} />
-              <Route path="/media-tools" element={<MediaToolsPage />} />
-              <Route path="/pdf" element={<PDFPage />} />
-              <Route path="/login" element={<LoginPage />} />
-              <Route path="/register" element={<RegisterPage />} />
-            </Route>
-
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
+          <AppRoutes />
         </Suspense>
         <Toaster position="top-center" theme={theme} richColors closeButton duration={4000} />
       </BrowserRouter>

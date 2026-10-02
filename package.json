@@ -13,8 +13,8 @@
     "lint:web": "cd apps/web && bunx oxlint",
     "scan": "trivy fs --scanners vuln,secret,config .",
     "type-check": "cd apps/web && bunx tsc --noEmit",
-    "migrate": "cd apps/api && go run migrations/migrate.go",
-    "migrate:seed": "cd apps/api && go run migrations/migrate.go --seed",
+    "migrate": "cd apps/api && go run db/migrations/migrate.go",
+    "migrate:seed": "cd apps/api && go run db/migrations/migrate.go --seed",
     "postinstall": "cd apps/web && bun install"
   },
   "devDependencies": {

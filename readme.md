@@ -106,7 +106,24 @@ magic-converter/
 | `POST`   | `/api/v1/converters`    | Create new converter  |
 | `PUT`    | `/api/v1/converters/:id`| Update converter      |
 | `DELETE` | `/api/v1/converters/:id`| Delete converter      |
+| `POST`   | `/api/v1/auth/password-reset/request` | Request a password reset magic link |
+| `POST`   | `/api/v1/auth/password-reset/confirm` | Set a new password using the magic-link token |
 | `GET`    | `/livez`                | Health check          |
+
+### SMTP Password Reset Setup
+
+Password reset uses a single-use token stored as a SHA-256 hash and sent through SMTP with TLS. Configure these variables in the local `.env` file (never commit them):
+
+```env
+FRONTEND_URL=https://your-frontend-domain.example
+SMTP_HOST=smtp.resend.com
+SMTP_PORT=465
+SMTP_USERNAME=resend
+SMTP_PASSWORD=your-resend-api-key
+SMTP_FROM=Magic Converter <noreply@email.raishannan.com>
+```
+
+The sending domain must be verified in Resend and its SPF/DKIM DNS records must be active. Reset links expire after 15 minutes, are invalidated after use, and revoke existing sessions after a successful password change.
 
 ---
 

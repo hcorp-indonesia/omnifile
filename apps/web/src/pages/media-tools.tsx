@@ -1,163 +1,319 @@
-import React, { useState } from 'react';
-import { FileUp, Image, Maximize, Upload, RefreshCw } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import {
+    ArrowRight,
+    CheckCircle2,
+    Crop,
+    Image,
+    Minimize2,
+    RefreshCw,
+    Sparkles,
+    Upload,
+    X,
+} from "lucide-react";
+import { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { toast } from "sonner";
 
-export default function MediaToolsPage() {
-  const [activeTab, setActiveTab] = useState<'convert' | 'remove-bg' | 'upscale'>('convert');
+import { cn } from "@/lib/utils";
+
+type ImageToolId =
+  | "image-converter"
+  | "upscale"
+  | "compress"
+  | "crop"
+  | "remove-bg";
+
+interface ImageTool {
+  id: ImageToolId;
+  title: string;
+  description: string;
+  badge: string;
+  icon: React.ComponentType<{ className?: string }>;
+  bg: string;
+  accept: string;
+}
+
+const imageTools: ImageTool[] = [
+  {
+    id: "image-converter",
+    title: "Image Converter",
+    description: "Konversi gambar ke JPG, PNG, WebP, AVIF, dan format lainnya.",
+    badge: "Convert",
+    icon: Image,
+    bg: "bg-emerald-300",
+    accept: "image/*",
+  },
+  {
+    id: "upscale",
+    title: "Upscale Image",
+    description: "Tingkatkan resolusi foto hingga kualitas HD dengan mudah.",
+    badge: "Enhance",
+    icon: Sparkles,
+    bg: "bg-amber-300",
+    accept: "image/*",
+  },
+  {
+    id: "compress",
+    title: "Compress Image",
+    description: "Kecilkan ukuran file gambar tanpa mengorbankan kualitas.",
+    badge: "Optimize",
+    icon: Minimize2,
+    bg: "bg-rose-300",
+    accept: "image/*",
+  },
+  {
+    id: "crop",
+    title: "Crop Image",
+    description: "Potong gambar sesuai ukuran dan framing yang kamu butuhkan.",
+    badge: "Edit",
+    icon: Crop,
+    bg: "bg-teal-300",
+    accept: "image/*",
+  },
+  {
+    id: "remove-bg",
+    title: "Remove Background",
+    description: "Hapus background foto dan siapkan gambar transparan.",
+    badge: "AI Powered",
+    icon: Image,
+    bg: "bg-purple-300",
+    accept: "image/*",
+  },
+];
+
+export default function ImagePage() {
+  const location = useLocation();
+  const routeState = location.state as {
+    mediaTab?: "convert" | "upscale" | "compress" | "crop" | "remove-bg";
+    targetFormat?: string;
+  } | null;
+  const initialToolId = routeState?.mediaTab
+    ? routeState.mediaTab === "convert"
+      ? "image-converter"
+      : routeState.mediaTab
+    : null;
+  const [activeTool, setActiveTool] = useState<ImageTool | null>(
+    initialToolId
+      ? imageTools.find((tool) => tool.id === initialToolId) ?? null
+      : null,
+  );
   const [file, setFile] = useState<File | null>(null);
+  const [targetFormat, setTargetFormat] = useState(routeState?.targetFormat ?? "png");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isCompleted, setIsCompleted] = useState(false);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      setFile(e.target.files[0]);
+  const handleOpenTool = (tool: ImageTool) => {
+    setActiveTool(tool);
+    setFile(null);
+    setIsProcessing(false);
+    setIsCompleted(false);
+  };
+
+  const handleCloseModal = () => {
+    setActiveTool(null);
+    setFile(null);
+    setIsProcessing(false);
+    setIsCompleted(false);
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = event.target.files?.[0];
+    if (selectedFile) {
+      setFile(selectedFile);
+      setIsCompleted(false);
     }
   };
 
   const handleProcess = () => {
-    if (!file) {
-      toast.error('Please upload a file first!');
+    if (!file || !activeTool) {
+      toast.error("Pilih satu gambar terlebih dahulu!");
       return;
     }
-    
+
     setIsProcessing(true);
-    // Simulate API call
     setTimeout(() => {
       setIsProcessing(false);
-      toast.success(`${activeTab === 'convert' ? 'Conversion' : activeTab === 'remove-bg' ? 'Background removal' : 'Upscaling'} completed successfully!`);
-    }, 2000);
+      setIsCompleted(true);
+      toast.success(`${activeTool.title} berhasil diproses!`);
+    }, 1500);
   };
 
   return (
-    <div className={cn("max-w-6xl", "mx-auto", "space-y-8", "font-sans", "pb-12")}>
-      {/* Header */}
-      <div className={cn("flex", "flex-col", "items-center", "text-center", "space-y-4", "mb-12", "pt-8")}>
-        <span className={cn("inline-block", "px-4", "py-2", "rounded-full", "border-2", "border-gray-900", "bg-yellow-400", "font-bold", "text-sm", "text-gray-900", "shadow-[2px_2px_0_0_#111827]")}>
-          Pro Tools
-        </span>
-        <h1 className={cn("text-4xl", "md:text-5xl", "font-bold", "text-gray-900", "dark:text-white", "tracking-tight")}>
-          Magic Media Studio
+    <div className={cn("mx-auto", "max-w-7xl", "space-y-12", "pb-16", "pt-6")}>
+      <div className={cn("space-y-5", "text-center")}>
+        <h1
+          className={cn(
+            "text-4xl",
+            "font-bold",
+            "leading-tight",
+            "tracking-tight",
+            "text-gray-900",
+            "dark:text-white",
+            "md:text-6xl",
+          )}
+        >
+          All Image Features <br />
+          <span
+            className={cn(
+              "bg-linear-to-r",
+              "from-emerald-500",
+              "via-blue-500",
+              "to-purple-500",
+              "bg-clip-text",
+              "text-transparent",
+            )}
+          >
+            Simple, Sharp & Fast
+          </span>
         </h1>
-        <p className={cn("text-gray-600", "dark:text-gray-400", "max-w-2xl", "text-lg", "font-medium", "mt-4")}>
-          Transform your files, remove backgrounds, and upscale images in seconds.
+        <p className={cn("mx-auto", "max-w-3xl", "text-lg", "font-bold", "text-gray-600", "dark:text-gray-400", "md:text-xl")}>
+          Select the tools you need below to convert, enhance, optimize, and edit your images.
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className={cn("flex", "flex-wrap", "justify-center", "gap-4", "mb-8")}>
-        {[
-          { id: 'convert', label: 'File Converter', icon: FileUp },
-          { id: 'remove-bg', label: 'Remove BG', icon: Image },
-          { id: 'upscale', label: 'Upscale HD', icon: Maximize },
-        ].map((tab) => (
+      <div className={cn("grid", "gap-6", "pt-4", "sm:grid-cols-2", "lg:grid-cols-3", "xl:grid-cols-4")}>
+        {imageTools.map((tool) => (
           <button
-            key={tab.id}
-            onClick={() => {
-                setActiveTab(tab.id as any);
-                setFile(null);
-            }}
+            key={tool.id}
+            type="button"
+            onClick={() => handleOpenTool(tool)}
             className={cn(
-              "flex", "items-center", "gap-2", "px-6", "py-3", "rounded-2xl", "border-3", "border-gray-900", "dark:border-gray-700", "font-bold", "transition-all", "duration-200",
-              activeTab === tab.id
-                ? "bg-gray-900 text-white dark:bg-yellow-400 dark:text-gray-900 shadow-[4px_4px_0_0_#111827] translate-y-0"
-                : "bg-white text-gray-900 dark:bg-[#1a1c22] dark:text-gray-100 shadow-none hover:-translate-y-1 hover:shadow-[4px_4px_0_0_#111827] dark:hover:shadow-[4px_4px_0_0_#000]"
+              "group",
+              "flex",
+              "cursor-pointer",
+              "flex-col",
+              "justify-between",
+              "rounded-3xl",
+              "border-3",
+              "border-gray-900",
+              "bg-white",
+              "p-6",
+              "text-left",
+              "shadow-[4px_4px_0_0_#111827]",
+              "transition-all",
+              "duration-200",
+              "hover:-translate-y-2",
+              "hover:shadow-[8px_8px_0_0_#111827]",
+              "dark:border-gray-700",
+              "dark:bg-[#16181d]",
+              "dark:shadow-[4px_4px_0_0_#000]",
+              "dark:hover:shadow-[8px_8px_0_0_#000]",
             )}
           >
-            <tab.icon className={cn("w-5", "h-5")} />
-            {tab.label}
+            <div>
+              <div className={cn("mb-5", "flex", "items-center", "justify-between")}>
+                <div
+                  className={cn(
+                    "flex",
+                    "h-14",
+                    "w-14",
+                    "items-center",
+                    "justify-center",
+                    "rounded-2xl",
+                    "border-3",
+                    "border-gray-900",
+                    "shadow-[3px_3px_0_0_#111827]",
+                    "transition-transform",
+                    "group-hover:scale-110",
+                    tool.bg,
+                  )}
+                >
+                  <tool.icon className={cn("h-7", "w-7", "text-gray-900")} />
+                </div>
+                <span className={cn("rounded-xl", "border-2", "border-gray-900", "bg-gray-100", "px-2.5", "py-1", "text-xs", "font-bold", "text-gray-800", "dark:border-gray-700", "dark:bg-[#1e222a]", "dark:text-gray-200")}>
+                  {tool.badge}
+                </span>
+              </div>
+              <h3 className={cn("mb-2", "text-xl", "font-bold", "text-gray-900", "dark:text-white")}>{tool.title}</h3>
+              <p className={cn("mb-6", "line-clamp-3", "text-xs", "font-semibold", "leading-relaxed", "text-gray-600", "dark:text-gray-400")}>
+                {tool.description}
+              </p>
+            </div>
+            <span className={cn("flex", "items-center", "gap-2", "text-sm", "font-bold", "text-gray-900", "transition-all", "group-hover:gap-3", "dark:text-white")}>
+              Coba Sekarang <ArrowRight className={cn("h-4", "w-4")} />
+            </span>
           </button>
         ))}
       </div>
 
-      {/* Main Card (Neobrutalism style) */}
-      <div className={cn("bg-white", "dark:bg-[#16181d]", "rounded-3xl", "border-3", "border-gray-900", "dark:border-gray-700", "p-8", "shadow-[8px_8px_0_0_#111827]", "dark:shadow-[8px_8px_0_0_#000]", "max-w-3xl", "mx-auto")}>
-        <div className={cn("flex", "flex-col", "items-center", "justify-center", "p-12", "border-3", "border-dashed", "border-gray-300", "dark:border-gray-700", "rounded-2xl", "bg-gray-50", "dark:bg-[#1e222a]", "hover:bg-[#fdfbf7]", "dark:hover:bg-[#252932]", "transition-colors", "relative", "cursor-pointer", "overflow-hidden", "group")}>
-          <input 
-            type="file" 
-            className={cn("absolute", "inset-0", "w-full", "h-full", "opacity-0", "cursor-pointer", "z-10")} 
-            onChange={handleFileChange}
-            accept={activeTab === 'convert' ? '*' : 'image/*'}
-          />
-          
-          {!file ? (
-            <div className={cn("flex", "flex-col", "items-center", "text-center", "space-y-4")}>
-              <div className={cn("w-16", "h-16", "rounded-2xl", "bg-yellow-400", "border-3", "border-gray-900", "flex", "items-center", "justify-center", "shadow-[4px_4px_0_0_#111827]", "group-hover:-translate-y-1", "transition-transform")}>
-                <Upload className={cn("w-8", "h-8", "text-gray-900")} />
-              </div>
-              <div>
-                <h3 className={cn("text-xl", "font-bold", "text-gray-900", "dark:text-white")}>Upload your file here</h3>
-                <p className={cn("text-gray-500", "dark:text-gray-400", "font-medium", "mt-1")}>Drag and drop or click to browse</p>
-              </div>
-            </div>
-          ) : (
-            <div className={cn("flex", "flex-col", "items-center", "text-center", "space-y-4", "z-20")}>
-              <div className={cn("w-16", "h-16", "rounded-2xl", "bg-emerald-400", "border-3", "border-gray-900", "flex", "items-center", "justify-center", "shadow-[4px_4px_0_0_#111827]")}>
-                <FileUp className={cn("w-8", "h-8", "text-gray-900")} />
-              </div>
-              <div>
-                <h3 className={cn("text-xl", "font-bold", "text-gray-900", "dark:text-white", "break-all")}>{file.name}</h3>
-                <p className={cn("text-gray-500", "dark:text-gray-400", "font-medium", "mt-1")}>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
-              </div>
-              <button 
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFile(null);
-                }}
-                className={cn("text-red-500", "dark:text-red-400", "font-bold", "hover:underline")}
-              >
-                Remove
-              </button>
-            </div>
-          )}
-        </div>
-
-        {activeTab === 'convert' && (
-           <div className={cn("mt-8")}>
-             <label className={cn("block", "text-sm", "font-bold", "text-gray-900", "dark:text-gray-100", "mb-2")}>Target Format</label>
-             <select className={cn("w-full", "p-4", "rounded-xl", "border-3", "border-gray-900", "dark:border-gray-700", "font-bold", "focus:outline-none", "focus:ring-2", "focus:ring-yellow-400", "cursor-pointer", "bg-white", "dark:bg-[#1a1c22]", "text-gray-900", "dark:text-white")}>
-                <option value="png">PNG Image</option>
-                <option value="jpg">JPG Image</option>
-                <option value="webp">WebP Image</option>
-                <option value="avif">AVIF Image</option>
-                <option value="pdf">PDF Document</option>
-                <option value="docx">Word Document (DOCX)</option>
-             </select>
-           </div>
-        )}
-        
-        {activeTab === 'upscale' && (
-           <div className={cn("mt-8")}>
-             <label className={cn("block", "text-sm", "font-bold", "text-gray-900", "dark:text-gray-100", "mb-2")}>Upscale Quality</label>
-             <div className={cn("flex", "gap-4")}>
-                <label className={cn("flex-1", "cursor-pointer")}>
-                   <input type="radio" name="scale" className={cn("peer", "sr-only")} defaultChecked />
-                   <div className={cn("p-4", "rounded-xl", "border-3", "border-gray-900", "dark:border-gray-700", "font-bold", "text-center", "peer-checked:bg-yellow-400", "peer-checked:text-gray-900", "peer-checked:shadow-[4px_4px_0_0_#111827]", "transition-all", "bg-white", "dark:bg-[#1a1c22]", "text-gray-900", "dark:text-white", "hover:bg-gray-50", "dark:hover:bg-gray-800")}>2x Scale (Fast)</div>
-                </label>
-                <label className={cn("flex-1", "cursor-pointer")}>
-                   <input type="radio" name="scale" className={cn("peer", "sr-only")} />
-                   <div className={cn("p-4", "rounded-xl", "border-3", "border-gray-900", "dark:border-gray-700", "font-bold", "text-center", "peer-checked:bg-yellow-400", "peer-checked:text-gray-900", "peer-checked:shadow-[4px_4px_0_0_#111827]", "transition-all", "bg-white", "dark:bg-[#1a1c22]", "text-gray-900", "dark:text-white", "hover:bg-gray-50", "dark:hover:bg-gray-800")}>4x Scale (HD)</div>
-                </label>
-             </div>
-           </div>
-        )}
-
-        <button 
-          disabled={!file || isProcessing}
-          onClick={handleProcess}
-          className={cn(
-            "w-full", "mt-8", "px-6", "py-4", "bg-purple-400", "hover:bg-purple-500", "disabled:bg-gray-200", "dark:disabled:bg-gray-800", "disabled:text-gray-500", "dark:disabled:text-gray-600", "disabled:border-gray-400", "dark:disabled:border-gray-700", "disabled:cursor-not-allowed", "border-3", "border-gray-900", "dark:border-gray-700", "rounded-xl", "font-bold", "text-lg", "text-gray-900", "shadow-[4px_4px_0_0_#111827]", "dark:shadow-[4px_4px_0_0_#000]", "disabled:shadow-none", "hover:-translate-y-1", "disabled:translate-y-0", "transition-all", "flex", "items-center", "justify-center", "gap-2"
-          )}
+      {activeTool && (
+        <div
+          className={cn("fixed", "inset-0", "z-50", "flex", "items-center", "justify-center", "bg-black/60", "p-4", "backdrop-blur-xs")}
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              handleCloseModal();
+            }
+          }}
         >
-          {isProcessing ? (
-            <>
-              <RefreshCw className={cn("w-6", "h-6", "animate-spin")} />
-              Processing Magic...
-            </>
-          ) : (
-            'Start Magic Processing'
-          )}
-        </button>
-      </div>
+          <div className={cn("relative", "w-full", "max-w-2xl", "rounded-3xl", "border-3", "border-gray-900", "bg-white", "p-6", "shadow-[8px_8px_0_0_#111827]", "dark:border-gray-700", "dark:bg-[#16181d]", "dark:shadow-[8px_8px_0_0_#000]", "sm:p-8")}>
+            <button
+              type="button"
+              aria-label="Close image tool"
+              onClick={handleCloseModal}
+              className={cn("absolute", "right-6", "top-6", "flex", "h-10", "w-10", "cursor-pointer", "items-center", "justify-center", "rounded-xl", "border-2", "border-gray-900", "bg-gray-100", "text-gray-900", "dark:border-gray-700", "dark:bg-[#1e222a]", "dark:text-white")}
+            >
+              <X className={cn("h-5", "w-5")} />
+            </button>
+
+            <div className={cn("mb-6", "flex", "items-center", "gap-4", "pr-12")}>
+              <div className={cn("flex", "h-14", "w-14", "shrink-0", "items-center", "justify-center", "rounded-2xl", "border-3", "border-gray-900", "shadow-[3px_3px_0_0_#111827]", activeTool.bg)}>
+                <activeTool.icon className={cn("h-7", "w-7", "text-gray-900")} />
+              </div>
+              <div>
+                <h2 className={cn("text-2xl", "font-bold", "text-gray-900", "dark:text-white")}>{activeTool.title}</h2>
+                <p className={cn("text-sm", "font-semibold", "text-gray-500", "dark:text-gray-400")}>{activeTool.description}</p>
+              </div>
+            </div>
+
+            <div className={cn("relative", "flex", "min-h-52", "flex-col", "items-center", "justify-center", "overflow-hidden", "rounded-2xl", "border-3", "border-dashed", "border-gray-300", "bg-gray-50", "p-8", "text-center", "dark:border-gray-700", "dark:bg-[#1e222a]")}>
+              <input type="file" accept={activeTool.accept} onChange={handleFileChange} className={cn("absolute", "inset-0", "h-full", "w-full", "cursor-pointer", "opacity-0")} />
+              {file ? (
+                <div className={cn("space-y-2")}>
+                  <div className={cn("mx-auto", "flex", "h-12", "w-12", "items-center", "justify-center", "rounded-2xl", "border-3", "border-gray-900", "bg-emerald-400", "shadow-[3px_3px_0_0_#111827]")}>
+                    {isCompleted ? <CheckCircle2 className={cn("h-6", "w-6", "text-gray-900")} /> : <Image className={cn("h-6", "w-6", "text-gray-900")} />}
+                  </div>
+                  <p className={cn("max-w-md", "break-all", "text-base", "font-bold", "text-gray-900", "dark:text-white")}>{file.name}</p>
+                  <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                </div>
+              ) : (
+                <div className={cn("space-y-3")}>
+                  <div className={cn("mx-auto", "flex", "h-14", "w-14", "items-center", "justify-center", "rounded-2xl", "border-3", "border-gray-900", "bg-yellow-400", "shadow-[3px_3px_0_0_#111827]")}>
+                    <Upload className={cn("h-7", "w-7", "text-gray-900")} />
+                  </div>
+                  <p className={cn("text-base", "font-bold", "text-gray-900", "dark:text-white")}>Pilih atau Drag & Drop gambar</p>
+                  <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>Format gambar sesuai tool yang dipilih</p>
+                </div>
+              )}
+            </div>
+
+            {activeTool.id === "image-converter" && (
+              <div className={cn("mt-6")}>
+                <label className={cn("mb-2", "block", "text-sm", "font-bold", "text-gray-900", "dark:text-gray-100")}>
+                  Target Format
+                </label>
+                <select
+                  value={targetFormat}
+                  onChange={(event) => setTargetFormat(event.target.value)}
+                  className={cn("w-full", "rounded-xl", "border-3", "border-gray-900", "bg-white", "p-4", "font-bold", "text-gray-900", "dark:border-gray-700", "dark:bg-[#1a1c22]", "dark:text-white")}
+                >
+                  <option value="png">PNG Image</option>
+                  <option value="jpg">JPG Image</option>
+                  <option value="webp">WebP Image</option>
+                  <option value="avif">AVIF Image</option>
+                </select>
+              </div>
+            )}
+
+            <button
+              type="button"
+              disabled={!file || isProcessing}
+              onClick={handleProcess}
+              className={cn("mt-6", "flex", "w-full", "items-center", "justify-center", "gap-2", "rounded-xl", "border-3", "border-gray-900", "bg-purple-400", "px-6", "py-4", "text-lg", "font-bold", "text-gray-900", "shadow-[4px_4px_0_0_#111827]", "transition-all", "hover:-translate-y-1", "hover:bg-purple-500", "disabled:cursor-not-allowed", "disabled:bg-gray-200", "disabled:shadow-none", "dark:border-gray-700", "dark:shadow-[4px_4px_0_0_#000]")}
+            >
+              {isProcessing ? <><RefreshCw className={cn("h-6", "w-6", "animate-spin")} /> Processing Magic...</> : `Mulai Proses ${activeTool.title}`}
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

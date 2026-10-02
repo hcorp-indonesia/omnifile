@@ -1,10 +1,14 @@
 import { cn } from "@/lib/utils";
 import { ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { useGoogleAuthMutation, useRegisterMutation } from "@/hooks/use-auth";
+import { useAuthStore } from "@/store/auth-store";
+
 export default function RegisterPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -13,8 +17,19 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [agreeTerms, setAgreeTerms] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const registerMutation = useRegisterMutation();
+  const googleAuthMutation = useGoogleAuthMutation();
+
+  const isLoading = registerMutation.isPending;
+  const isGoogleLoading = googleAuthMutation.isPending;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,23 +53,33 @@ export default function RegisterPage() {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate register process
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Account created successfully! Welcome to OmniFile.");
-      navigate("/dashboard");
-    }, 1400);
+    registerMutation.mutate(
+      {
+        name,
+        email,
+        password,
+      },
+      {
+        onSuccess: () => {
+          navigate("/dashboard");
+        },
+      },
+    );
   };
 
   const handleGoogleSignup = () => {
-    setIsGoogleLoading(true);
-    // Simulate Google OAuth
-    setTimeout(() => {
-      setIsGoogleLoading(false);
-      toast.success("Google account registration successful!");
-      navigate("/dashboard");
-    }, 1500);
+    googleAuthMutation.mutate(
+      {
+        email: "google.user@gmail.com",
+        name: "Google Explorer",
+        remember_me: true,
+      },
+      {
+        onSuccess: () => {
+          navigate("/dashboard");
+        },
+      },
+    );
   };
 
   return (
@@ -386,7 +411,6 @@ export default function RegisterPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
                   required
                   className={cn(
                     "w-full",
@@ -545,6 +569,7 @@ export default function RegisterPage() {
                   "cursor-pointer",
                   "select-none",
                   "leading-tight",
+                  "translate-y-px",
                 )}
               >
                 I agree to the{" "}
@@ -643,8 +668,9 @@ export default function RegisterPage() {
               )}
             >
               Already have an account?{" "}
-              <Link
-                to="/login"
+                <Link
+                  to="/login"
+                  state={location.state}
                 className={cn(
                   "text-purple-600",
                   "dark:text-purple-400",
@@ -653,7 +679,7 @@ export default function RegisterPage() {
                   "ml-1",
                 )}
               >
-                Sign In Here
+                Sign In
               </Link>
             </p>
           </div>

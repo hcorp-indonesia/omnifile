@@ -1,13 +1,16 @@
+import { useCurrentUser, useLogoutMutation } from "@/hooks/use-auth";
+import { useAuthStore } from "@/store/auth-store";
 import { useThemeStore } from "@/store/theme-store";
 import {
   Bot,
-  Calculator,
+  Crop,
   FileArchive,
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
   Layers,
   LayoutGrid,
+  Minimize2,
   Moon,
   Music,
   ScanText,
@@ -16,7 +19,7 @@ import {
   Sun,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 
 const pdfConvertTools = [
@@ -67,19 +70,9 @@ const pdfEditTools = [
   },
 ];
 
+const pdfTools = [...pdfConvertTools, ...pdfEditTools];
+
 const aiMediaTools = [
-  {
-    title: "Remove BG",
-    desc: "Hapus background foto",
-    icon: Scissors,
-    bg: "bg-purple-300",
-  },
-  {
-    title: "Upscale HD",
-    desc: "Tingkatkan resolusi AI",
-    icon: Sparkles,
-    bg: "bg-amber-300",
-  },
   {
     title: "AI Assistant",
     desc: "Chat & tanya dokumen",
@@ -88,31 +81,65 @@ const aiMediaTools = [
   },
 ];
 
-const generalTools = [
+const imageTools = [
   {
     title: "Image Converter",
-    desc: "Konversi PNG, WebP, dll",
+    desc: "Konversi format gambar",
     icon: ImageIcon,
     bg: "bg-emerald-300",
+    tab: "convert",
   },
+  {
+    title: "Upscale Image",
+    desc: "Naikkan resolusi foto",
+    icon: Sparkles,
+    bg: "bg-amber-300",
+    tab: "upscale",
+  },
+  {
+    title: "Compress Image",
+    desc: "Kecilkan ukuran gambar",
+    icon: Minimize2,
+    bg: "bg-rose-300",
+    tab: "compress",
+  },
+  {
+    title: "Crop Image",
+    desc: "Potong dan rapikan foto",
+    icon: Crop,
+    bg: "bg-teal-300",
+    tab: "crop",
+  },
+  {
+    title: "Remove Background",
+    desc: "Hapus background foto",
+    icon: Scissors,
+    bg: "bg-purple-300",
+    tab: "remove-bg",
+  },
+];
+
+const generalTools = [
   {
     title: "Audio Converter",
     desc: "Ubah format audio/musik",
     icon: Music,
     bg: "bg-blue-300",
   },
-  {
-    title: "Unit Converters",
-    desc: "Konversi satuan hitung",
-    icon: Calculator,
-    bg: "bg-orange-300",
-  },
 ];
 
 export default function Header() {
+  const location = useLocation();
   const { theme, toggleTheme } = useThemeStore();
   const [isToolsOpen, setIsToolsOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+
+  useCurrentUser();
+  const user = useAuthStore((state) => state.user);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const logoutMutation = useLogoutMutation();
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -122,10 +149,29 @@ export default function Header() {
       ) {
         setIsToolsOpen(false);
       }
+      if (
+        userMenuRef.current &&
+        !userMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsUserMenuOpen(false);
+      }
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!isToolsOpen) {
+      return;
+    }
+
+    const previousBodyOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.body.style.overflow = previousBodyOverflow;
+    };
+  }, [isToolsOpen]);
 
   return (
     <header
@@ -215,7 +261,10 @@ export default function Header() {
                   "left-1/2",
                   "-translate-x-1/2",
                   "pt-3",
-                  "w-[980px]",
+                  "w-[760px]",
+                  "max-w-[calc(100vw-2rem)]",
+                  "max-h-[calc(100vh-7rem)]",
+                  "overflow-y-auto",
                   "z-50",
                 )}
               >
@@ -233,9 +282,9 @@ export default function Header() {
                   )}
                 >
                   <div
-                    className={cn("grid", "grid-cols-4", "gap-5", "text-left")}
+                    className={cn("grid", "grid-cols-2", "gap-5", "text-left")}
                   >
-                    {/* Column 1: Convert PDF */}
+                    {/* Cluster: PDF Tools */}
                     <div className={cn("space-y-3")}>
                       <h4
                         className={cn(
@@ -248,10 +297,10 @@ export default function Header() {
                           "px-1",
                         )}
                       >
-                        Convert PDF
+                        PDF Tools
                       </h4>
                       <div className={cn("space-y-2.5")}>
-                        {pdfConvertTools.map((tool) => (
+                        {pdfTools.map((tool) => (
                           <Link
                             key={tool.title}
                             to="/pdf"
@@ -329,7 +378,7 @@ export default function Header() {
                     </div>
 
                     {/* Column 2: Organize & Edit PDF */}
-                    <div className={cn("space-y-3")}>
+                    <div className={cn("hidden")}>
                       <h4
                         className={cn(
                           "text-xs",
@@ -421,8 +470,100 @@ export default function Header() {
                       </div>
                     </div>
 
-                    {/* Column 3: AI Media Tools */}
+                    {/* Cluster: Image Tools */}
                     <div className={cn("space-y-3")}>
+                      <h4
+                        className={cn(
+                          "text-xs",
+                          "font-bold",
+                          "text-gray-400",
+                          "dark:text-gray-500",
+                          "uppercase",
+                          "tracking-wider",
+                          "px-1",
+                        )}
+                      >
+                        Image Tools
+                      </h4>
+                      <div className={cn("space-y-2.5")}>
+                        {imageTools.map((tool) => (
+                          <Link
+                            key={tool.title}
+                            to="/image"
+                            state={{ mediaTab: tool.tab }}
+                            onClick={() => setIsToolsOpen(false)}
+                            className={cn(
+                              "flex",
+                              "items-center",
+                              "gap-2.5",
+                              "p-2.5",
+                              "rounded-2xl",
+                              "border-2",
+                              "border-gray-900",
+                              "dark:border-gray-700",
+                              "bg-[#fdfbf7]",
+                              "dark:bg-[#1a1c22]",
+                              "hover:bg-yellow-100",
+                              "dark:hover:bg-[#252932]",
+                              "hover:-translate-y-0.5",
+                              "hover:shadow-[2px_2px_0_0_#111827]",
+                              "dark:hover:shadow-[2px_2px_0_0_#000]",
+                              "transition-all",
+                              "group",
+                            )}
+                          >
+                            <div
+                              className={cn(
+                                "flex",
+                                "h-9",
+                                "w-9",
+                                "shrink-0",
+                                "items-center",
+                                "justify-center",
+                                "rounded-xl",
+                                "border-2",
+                                "border-gray-900",
+                                "dark:border-gray-700",
+                                "shadow-[1px_1px_0_0_#111827]",
+                                "dark:shadow-[1px_1px_0_0_#000]",
+                                tool.bg,
+                                "group-hover:scale-105",
+                                "transition-transform",
+                              )}
+                            >
+                              <tool.icon className={cn("h-4", "w-4", "text-gray-900")} />
+                            </div>
+                            <div className={cn("min-w-0")}>
+                              <div
+                                className={cn(
+                                  "text-xs",
+                                  "font-bold",
+                                  "text-gray-900",
+                                  "dark:text-white",
+                                  "truncate",
+                                )}
+                              >
+                                {tool.title}
+                              </div>
+                              <div
+                                className={cn(
+                                  "text-[10px]",
+                                  "font-semibold",
+                                  "text-gray-500",
+                                  "dark:text-gray-400",
+                                  "truncate",
+                                )}
+                              >
+                                {tool.desc}
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Hidden from the Tools cluster: AI Media Tools */}
+                    <div className={cn("hidden")}>
                       <h4
                         className={cn(
                           "text-xs",
@@ -440,7 +581,7 @@ export default function Header() {
                         {aiMediaTools.map((tool) => (
                           <Link
                             key={tool.title}
-                            to="/media-tools"
+                            to="/image"
                             onClick={() => setIsToolsOpen(false)}
                             className={cn(
                               "flex",
@@ -514,8 +655,8 @@ export default function Header() {
                       </div>
                     </div>
 
-                    {/* Column 4: More Utilities */}
-                    <div className={cn("space-y-3")}>
+                    {/* Hidden from the Tools cluster: Utilities */}
+                    <div className={cn("hidden")}>
                       <h4
                         className={cn(
                           "text-xs",
@@ -533,11 +674,7 @@ export default function Header() {
                         {generalTools.map((tool) => (
                           <Link
                             key={tool.title}
-                            to={
-                              tool.title === "Unit Converters"
-                                ? "/converters"
-                                : "/media-tools"
-                            }
+                            to="/audio"
                             onClick={() => setIsToolsOpen(false)}
                             className={cn(
                               "flex",
@@ -647,7 +784,7 @@ export default function Header() {
             PDF
           </Link>
           <Link
-            to="/media-tools"
+            to="/image"
             className={cn(
               "px-3",
               "py-2",
@@ -666,7 +803,7 @@ export default function Header() {
             Image
           </Link>
           <Link
-            to="/media-tools"
+            to="/audio"
             className={cn(
               "px-3",
               "py-2",
@@ -682,7 +819,7 @@ export default function Header() {
               "transition-all",
             )}
           >
-            Convert
+            Audio
           </Link>
         </nav>
 
@@ -712,9 +849,7 @@ export default function Header() {
               "border-gray-900",
               "bg-emerald-400",
               "text-gray-900",
-              "transition-all",
-              "hover:-translate-y-1",
-              "hover:shadow-[4px_4px_0_0_#111827]",
+              "transition-colors",
             )}
           >
             {theme === "light" ? (
@@ -724,57 +859,168 @@ export default function Header() {
             )}
           </button>
 
-          <Link
-            to="/login"
-            className={cn(
-              "flex",
-              "h-11",
-              "items-center",
-              "justify-center",
-              "shrink-0",
-              "px-5",
-              "rounded-xl",
-              "border-3",
-              "border-gray-900",
-              "dark:border-gray-700",
-              "font-bold",
-              "text-gray-900",
-              "dark:text-white",
-              "bg-white",
-              "dark:bg-[#1a1c22]",
-              "hover:bg-gray-50",
-              "dark:hover:bg-gray-800",
-              "hover:-translate-y-1",
-              "hover:shadow-[4px_4px_0_0_#111827]",
-              "dark:hover:shadow-[4px_4px_0_0_#000]",
-              "transition-all",
-            )}
-          >
-            Login
-          </Link>
-          <Link
-            to="/register"
-            className={cn(
-              "flex",
-              "h-11",
-              "items-center",
-              "justify-center",
-              "shrink-0",
-              "px-5",
-              "rounded-xl",
-              "border-3",
-              "border-gray-900",
-              "font-bold",
-              "text-gray-900",
-              "bg-purple-400",
-              "hover:bg-purple-500",
-              "hover:-translate-y-1",
-              "hover:shadow-[4px_4px_0_0_#111827]",
-              "transition-all",
-            )}
-          >
-            Sign Up
-          </Link>
+          {isAuthenticated && user ? (
+            <div ref={userMenuRef} className={cn("relative")}>
+              <button
+                onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                title={user.email}
+                className={cn(
+                  "flex",
+                  "h-11",
+                  "w-11",
+                  "shrink-0",
+                  "items-center",
+                  "justify-center",
+                  "rounded-xl",
+                  "border-3",
+                  "border-gray-900",
+                  "dark:border-gray-700",
+                  "bg-purple-400",
+                  "dark:bg-purple-500/30",
+                  "text-gray-900",
+                  "dark:text-purple-200",
+                  "font-black",
+                  "text-sm",
+                  "uppercase",
+                  "cursor-pointer",
+                )}
+              >
+                {user.name
+                  ? user.name
+                      .split(" ")
+                      .map((w) => w[0])
+                      .slice(0, 2)
+                      .join("")
+                  : user.email[0].toUpperCase()}
+              </button>
+
+              {isUserMenuOpen && (
+                <div
+                  className={cn(
+                    "absolute",
+                    "right-0",
+                    "top-14",
+                    "w-48",
+                    "rounded-2xl",
+                    "border-3",
+                    "border-gray-900",
+                    "dark:border-gray-700",
+                    "bg-white",
+                    "dark:bg-[#1a1c22]",
+                    "shadow-[6px_6px_0_0_#111827]",
+                    "dark:shadow-[6px_6px_0_0_#000]",
+                    "p-2",
+                    "z-50",
+                  )}
+                >
+                  <div
+                    className={cn(
+                      "px-3",
+                      "py-2",
+                      "text-xs",
+                      "font-bold",
+                      "text-gray-500",
+                      "dark:text-gray-400",
+                      "truncate",
+                    )}
+                  >
+                    {user.email}
+                  </div>
+                  <div
+                    className={cn(
+                      "h-0.5",
+                      "bg-gray-200",
+                      "dark:bg-gray-700",
+                      "my-1",
+                    )}
+                  />
+                  <button
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      logoutMutation.mutate();
+                    }}
+                    disabled={logoutMutation.isPending}
+                    className={cn(
+                      "w-full",
+                      "flex",
+                      "items-center",
+                      "gap-2",
+                      "px-3",
+                      "py-2.5",
+                      "rounded-xl",
+                      "text-sm",
+                      "font-bold",
+                      "text-rose-600",
+                      "dark:text-rose-400",
+                      "hover:bg-rose-50",
+                      "dark:hover:bg-rose-500/10",
+                      "transition-colors",
+                      "cursor-pointer",
+                      logoutMutation.isPending && "opacity-50 cursor-not-allowed",
+                    )}
+                  >
+                    {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                state={{ backgroundLocation: location }}
+                className={cn(
+                  "flex",
+                  "h-11",
+                  "items-center",
+                  "justify-center",
+                  "shrink-0",
+                  "px-5",
+                  "rounded-xl",
+                  "border-3",
+                  "border-gray-900",
+                  "dark:border-gray-700",
+                  "font-bold",
+                  "text-gray-900",
+                  "dark:text-white",
+                  "bg-white",
+                  "dark:bg-[#1a1c22]",
+                  "hover:bg-gray-50",
+                  "dark:hover:bg-gray-800",
+                  "hover:-translate-y-1",
+                  "hover:shadow-[4px_4px_0_0_#111827]",
+                  "dark:hover:shadow-[4px_4px_0_0_#000]",
+                  "transition-all",
+                )}
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                state={{ backgroundLocation: location }}
+                className={cn(
+                  "flex",
+                  "h-11",
+                  "items-center",
+                  "justify-center",
+                  "shrink-0",
+                  "px-5",
+                  "rounded-xl",
+                  "border-3",
+                  "border-gray-900",
+                  "font-bold",
+                  "text-gray-900",
+                  "bg-purple-400",
+                  "hover:bg-purple-500",
+                  "hover:-translate-y-1",
+                  "hover:shadow-[4px_4px_0_0_#111827]",
+                  "transition-all",
+                )}
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </header>

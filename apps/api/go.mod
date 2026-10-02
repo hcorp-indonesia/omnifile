@@ -3,8 +3,6 @@ module magic-converter
 go 1.26.4
 
 require (
-	ariga.io/atlas v1.3.0
-	ariga.io/atlas-provider-bun v0.0.3
 	github.com/go-playground/validator/v10 v10.30.5
 	github.com/goccy/go-json v0.11.2
 	github.com/gofiber/fiber/v3 v3.5.0
@@ -19,6 +17,7 @@ require (
 	github.com/uptrace/bun/driver/pgdriver v1.2.18
 	github.com/uptrace/bun/extra/bundebug v1.2.18
 	go.uber.org/dig v1.19.0
+	golang.org/x/crypto v0.57.0
 )
 
 require (
@@ -45,10 +44,6 @@ require (
 	github.com/rs/xid v1.6.0 // indirect
 	github.com/tinylib/msgp v1.6.4 // indirect
 	github.com/tmthrgd/go-hex v0.0.0-20190904060850-447a3041c3bc // indirect
-	github.com/uptrace/bun/dialect/mssqldialect v1.2.15 // indirect
-	github.com/uptrace/bun/dialect/mysqldialect v1.2.15 // indirect
-	github.com/uptrace/bun/dialect/oracledialect v1.2.15 // indirect
-	github.com/uptrace/bun/dialect/sqlitedialect v1.2.15 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.73.0 // indirect
 	github.com/vmihailenco/msgpack/v5 v5.4.1 // indirect
@@ -58,13 +53,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.46.0 // indirect
 	go.uber.org/atomic v1.12.0 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
-	golang.org/x/crypto v0.57.0 // indirect
-	golang.org/x/mod v0.41.0 // indirect
 	golang.org/x/net v0.58.0 // indirect
-	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/sys v0.48.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
-	golang.org/x/tools v0.49.0 // indirect
 	gopkg.in/ini.v1 v1.67.3 // indirect
 	mellium.im/sasl v0.3.2 // indirect
 )

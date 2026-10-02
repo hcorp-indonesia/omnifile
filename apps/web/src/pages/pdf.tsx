@@ -210,29 +210,6 @@ export default function PDFPage() {
     <div className={cn("max-w-7xl", "mx-auto", "space-y-12", "pb-16", "pt-6")}>
       {/* Header Section */}
       <div className={cn("text-center", "space-y-5")}>
-        <div
-          className={cn(
-            "inline-flex",
-            "items-center",
-            "gap-2",
-            "px-4",
-            "py-2",
-            "rounded-full",
-            "border-3",
-            "border-gray-900",
-            "dark:border-gray-700",
-            "bg-red-400",
-            "font-bold",
-            "text-sm",
-            "text-gray-900",
-            "shadow-[2px_2px_0_0_#111827]",
-            "dark:shadow-[2px_2px_0_0_#000]",
-          )}
-        >
-          <FileText className={cn("h-4", "w-4")} />
-          <span>PDF Studio Pro</span>
-        </div>
-
         <h1
           className={cn(
             "text-4xl",

@@ -1,17 +1,32 @@
 import { cn } from "@/lib/utils";
 import { ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
-import React, { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import React, { useEffect, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { useGoogleAuthMutation, useLoginMutation } from "@/hooks/use-auth";
+import { useAuthStore } from "@/store/auth-store";
+
 export default function LoginPage() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const loginMutation = useLoginMutation();
+  const googleAuthMutation = useGoogleAuthMutation();
+
+  const isLoading = loginMutation.isPending;
+  const isGoogleLoading = googleAuthMutation.isPending;
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,23 +35,33 @@ export default function LoginPage() {
       return;
     }
 
-    setIsLoading(true);
-    // Simulate login process
-    setTimeout(() => {
-      setIsLoading(false);
-      toast.success("Successfully signed in! Welcome back to OmniFile.");
-      navigate("/dashboard");
-    }, 1200);
+    loginMutation.mutate(
+      {
+        email,
+        password,
+        remember_me: rememberMe,
+      },
+      {
+        onSuccess: () => {
+          navigate("/dashboard");
+        },
+      },
+    );
   };
 
   const handleGoogleLogin = () => {
-    setIsGoogleLoading(true);
-    // Simulate Google OAuth popup/redirect
-    setTimeout(() => {
-      setIsGoogleLoading(false);
-      toast.success("Successfully authenticated with Google account!");
-      navigate("/dashboard");
-    }, 1500);
+    googleAuthMutation.mutate(
+      {
+        email: "google.user@gmail.com",
+        name: "Google Explorer",
+        remember_me: rememberMe,
+      },
+      {
+        onSuccess: () => {
+          navigate("/dashboard");
+        },
+      },
+    );
   };
 
   return (
@@ -247,7 +272,7 @@ export default function LoginPage() {
           </div>
 
           {/* Form */}
-          <form onSubmit={handleSubmit} className={cn("space-y-4")}>
+          <form onSubmit={handleSubmit} className={cn("mt-6", "space-y-4")}>
             {/* Email Field */}
             <div className={cn("space-y-1.5")}>
               <label
@@ -269,7 +294,6 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="name@email.com"
                 required
                 className={cn(
                   "w-full",
@@ -314,14 +338,9 @@ export default function LoginPage() {
                 >
                   Password
                 </label>
-                <a
-                  href="#forgot"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toast.info(
-                      "Password reset feature will be available soon.",
-                    );
-                  }}
+                <Link
+                  to="/forgot-password"
+                  state={location.state}
                   className={cn(
                     "text-xs",
                     "font-bold",
@@ -331,7 +350,7 @@ export default function LoginPage() {
                   )}
                 >
                   Forgot password?
-                </a>
+                </Link>
               </div>
               <div className={cn("relative")}>
                 <input
@@ -339,7 +358,6 @@ export default function LoginPage() {
                   type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="At least 8 characters"
                   required
                   className={cn(
                     "w-full",
@@ -423,9 +441,11 @@ export default function LoginPage() {
                   "dark:text-gray-300",
                   "cursor-pointer",
                   "select-none",
+                  "leading-none",
+                  "translate-y-px",
                 )}
               >
-                Remember me on this device
+                Remember me
               </span>
             </div>
 
@@ -506,8 +526,9 @@ export default function LoginPage() {
               )}
             >
               Don't have an account?{" "}
-              <Link
-                to="/register"
+                <Link
+                  to="/register"
+                  state={location.state}
                 className={cn(
                   "text-purple-600",
                   "dark:text-purple-400",
@@ -516,7 +537,7 @@ export default function LoginPage() {
                   "ml-1",
                 )}
               >
-                Sign Up for Free
+                Sign Up
               </Link>
             </p>
           </div>

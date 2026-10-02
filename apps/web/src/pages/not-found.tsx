@@ -1,6 +1,6 @@
-import { ArrowLeft, Sparkles } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { ArrowLeft } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 export default function NotFoundPage() {
   const navigate = useNavigate();
@@ -8,9 +8,7 @@ export default function NotFoundPage() {
   return (
     <div className={cn("flex", "min-h-screen", "flex-col", "items-center", "justify-center", "bg-[#fdfbf7]", "dark:bg-[#0e1015]", "px-4")}>
       <div className={cn("text-center")}>
-        <div className={cn("mx-auto", "mb-6", "flex", "h-20", "w-20", "items-center", "justify-center", "rounded-2xl", "bg-yellow-400", "border-3", "border-gray-900", "dark:border-gray-700", "shadow-[4px_4px_0_0_#111827]", "dark:shadow-[4px_4px_0_0_#000]")}>
-          <Sparkles className={cn("h-10", "w-10", "text-gray-900")} />
-        </div>
+        
 
         <h1 className={cn("text-8xl", "font-black", "text-gray-900", "dark:text-white", "tracking-tight")}>
           404
@@ -44,7 +42,8 @@ export default function NotFoundPage() {
             "dark:shadow-[4px_4px_0_0_#000]",
             "transition-all",
             "hover:bg-purple-500",
-            "hover:-translate-y-1"
+            "hover:-translate-y-1",
+            "cursor-pointer",
           )}
         >
           <ArrowLeft className={cn("h-5", "w-5")} />

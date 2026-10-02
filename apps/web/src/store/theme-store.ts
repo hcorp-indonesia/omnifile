@@ -12,9 +12,14 @@ interface ThemeState {
 const applyThemeToDOM = (theme: Theme) => {
   if (typeof document !== 'undefined') {
     const root = document.documentElement;
+    root.classList.add('theme-transition');
     root.classList.remove('light', 'dark');
     root.classList.add(theme);
     root.style.colorScheme = theme;
+
+    window.setTimeout(() => {
+      root.classList.remove('theme-transition');
+    }, 180);
   }
 };
 
