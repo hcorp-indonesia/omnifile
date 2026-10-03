@@ -18,7 +18,7 @@ export const navigation: NavItem[] = [
     icon: Music2,
   },
   {
-    label: 'Media Tools',
+    label: 'Image',
     path: '/image',
     icon: ImagePlus,
   },

@@ -4,14 +4,16 @@ import (
 	"magic-converter/config"
 	"magic-converter/src/middleware"
 	"magic-converter/src/modules/auth"
-	"magic-converter/src/modules/converter"
-	"magic-converter/src/modules/media"
+	pdftojpg "magic-converter/src/modules/pdf/pdf-to-jpg"
 	"magic-converter/src/routes"
 	"magic-converter/src/utils"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
+	"github.com/gofiber/fiber/v3/middleware/helmet"
+	"github.com/gofiber/fiber/v3/middleware/logger"
+	"github.com/gofiber/fiber/v3/middleware/recover"
 	"github.com/rs/zerolog/log"
 	"github.com/uptrace/bun"
 	"go.uber.org/dig"
@@ -24,17 +26,14 @@ func main() {
 
 	c.Provide(config.NewDatabase)
 	c.Provide(utils.NewDragonflyClient)
-	c.Provide(utils.NewRustfsClient)
-
-	c.Provide(converter.NewConverterService)
-	c.Provide(converter.NewConverterController)
-
-	c.Provide(media.NewMediaService)
-	c.Provide(media.NewMediaController)
+	c.Provide(utils.NewSMTPMailer)
 
 	c.Provide(auth.NewAuthService)
-	c.Provide(auth.NewSMTPMailer)
 	c.Provide(auth.NewAuthController)
+	c.Provide(middleware.NewAuthMiddleware)
+
+	c.Provide(pdftojpg.NewPdfToJpgService)
+	c.Provide(pdftojpg.NewPdfToJpgController)
 
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
@@ -45,7 +44,12 @@ func main() {
 		app.Use(compress.New(compress.Config{
 			Level: compress.LevelBestSpeed,
 		}))
-		middleware.FiberMiddleware(app)
+		app.Use(
+			helmet.New(),
+			config.CorsConfig(),
+			logger.New(),
+			recover.New(),
+		)
 
 		app.Get(healthcheck.LivenessEndpoint, healthcheck.New())
 
@@ -54,13 +58,13 @@ func main() {
 
 	c.Invoke(func(
 		app *fiber.App,
-		converterController *converter.ConverterController,
-		mediaController *media.MediaController,
 		authController *auth.AuthController,
+		authMiddleware *middleware.AuthMiddleware,
+		pdfToJpgController *pdftojpg.PdfToJpgController,
 		dbClient *bun.DB,
 		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, converterController, mediaController, authController)
+		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

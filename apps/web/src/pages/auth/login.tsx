@@ -1,8 +1,7 @@
 import { cn } from "@/lib/utils";
-import { ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { CheckCircle2, Eye, EyeOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import { useGoogleAuthMutation, useLoginMutation } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
@@ -30,10 +29,6 @@ export default function LoginPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email || !password) {
-      toast.error("Please enter both email and password!");
-      return;
-    }
 
     loginMutation.mutate(
       {
@@ -143,7 +138,7 @@ export default function LoginPage() {
               "tracking-tight",
             )}
           >
-            Sign in to Account
+            Login to Account
           </h1>
           <p
             className={cn(
@@ -157,7 +152,7 @@ export default function LoginPage() {
             Access all powerful file & media tools without limits.
           </p>
 
-          {/* Google Sign In Button */}
+          {/* Google Login Button */}
           <div className={cn("mt-6")}>
             <button
               type="button"
@@ -499,8 +494,7 @@ export default function LoginPage() {
                 />
               ) : (
                 <>
-                  <span>Sign In Now</span>
-                  <ArrowRight className={cn("w-4", "h-4")} />
+                  <span>Login</span>
                 </>
               )}
             </button>
@@ -526,9 +520,9 @@ export default function LoginPage() {
               )}
             >
               Don't have an account?{" "}
-                <Link
-                  to="/register"
-                  state={location.state}
+              <Link
+                to="/register"
+                state={location.state}
                 className={cn(
                   "text-purple-600",
                   "dark:text-purple-400",

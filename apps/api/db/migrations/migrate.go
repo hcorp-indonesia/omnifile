@@ -8,10 +8,9 @@ import (
 	"io/fs"
 	"os"
 	"strings"
-	"time"
 
 	"magic-converter/config"
-	"magic-converter/src/modules/converter"
+	"magic-converter/db/seeders"
 
 	"github.com/joho/godotenv"
 	"github.com/uptrace/bun"
@@ -25,7 +24,6 @@ var Migrations = migrate.NewMigrations()
 //go:embed *.sql
 var sqlMigrations embed.FS
 
-// atlasToBunFS wraps embed.FS to trick Bun into seeing Atlas-style .sql files as .up.sql files
 type atlasToBunFS struct {
 	fs.FS
 }
@@ -77,23 +75,20 @@ func init() {
 
 func main() {
 	ctx := context.Background()
-
-	seed := false
+	seedModule := ""
 	for _, arg := range os.Args[1:] {
 		if arg == "--seed" {
-			seed = true
+			seedModule = "all"
+		} else if strings.HasPrefix(arg, "--seed=") {
+			seedModule = strings.TrimPrefix(arg, "--seed=")
 		}
 	}
 
-	sqldb := sql.OpenDB(pgdriver.NewConnector(
-		pgdriver.WithDSN(config.DatabaseConnectionString()),
-	))
-
+	sqldb := sql.OpenDB(pgdriver.NewConnector(pgdriver.WithDSN(config.DatabaseConnectionString())))
 	pg := bun.NewDB(sqldb, pgdialect.New())
 	defer pg.Close()
 
 	migrator := migrate.NewMigrator(pg, Migrations)
-
 	if err := migrator.Init(ctx); err != nil {
 		fmt.Printf("Failed to initialize migrator: %v\n", err)
 		os.Exit(1)
@@ -104,92 +99,16 @@ func main() {
 		fmt.Printf("Failed to run migrations: %v\n", err)
 		os.Exit(1)
 	}
-
 	if group.IsZero() {
 		fmt.Println("No new migrations to run")
 	} else {
 		fmt.Printf("Migrated to %s\n", group)
 	}
 
-	if seed {
-		if err := seeder(pg, ctx); err != nil {
-			fmt.Printf("Failed to run seeder: %v\n", err)
+	if seedModule != "" {
+		if err := seeders.Run(ctx, pg, seedModule); err != nil {
+			fmt.Printf("Failed to run seeders: %v\n", err)
 			os.Exit(1)
 		}
 	}
-}
-
-func seeder(pg *bun.DB, ctx context.Context) error {
-	fmt.Println("Running seeder...")
-
-	// Check if converters table exists
-	tableCount, err := pg.NewSelect().
-		TableExpr("information_schema.tables").
-		Where("table_schema = 'public' AND table_name = 'converters'").
-		Count(ctx)
-	if err != nil || tableCount == 0 {
-		fmt.Println("Converters table does not exist, skipping converters seeder")
-		return nil
-	}
-
-	converters := []converter.Converter{
-		{
-			Name:        "Celsius to Fahrenheit",
-			Description: ptr("Convert temperature from Celsius to Fahrenheit"),
-			FromUnit:    "°C",
-			ToUnit:      "°F",
-			Formula:     "(value * 9/5) + 32",
-			Category:    "temperature",
-			IsActive:    true,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		{
-			Name:        "Kilometer to Miles",
-			Description: ptr("Convert distance from Kilometers to Miles"),
-			FromUnit:    "km",
-			ToUnit:      "mi",
-			Formula:     "value * 0.621371",
-			Category:    "distance",
-			IsActive:    true,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-		{
-			Name:        "Kilogram to Pounds",
-			Description: ptr("Convert weight from Kilograms to Pounds"),
-			FromUnit:    "kg",
-			ToUnit:      "lbs",
-			Formula:     "value * 2.20462",
-			Category:    "weight",
-			IsActive:    true,
-			CreatedAt:   time.Now(),
-			UpdatedAt:   time.Now(),
-		},
-	}
-
-	for _, c := range converters {
-		exists, err := pg.NewSelect().Model((*converter.Converter)(nil)).Where("name = ?", c.Name).Exists(ctx)
-		if err != nil {
-			return err
-		}
-		if exists {
-			fmt.Printf("Converter %s already exists, skipping\n", c.Name)
-			continue
-		}
-
-		_, err = pg.NewInsert().Model(&c).Exec(ctx)
-		if err != nil {
-			return fmt.Errorf("failed to insert converter %s: %w", c.Name, err)
-		}
-
-		fmt.Printf("Seeded converter: %s\n", c.Name)
-	}
-
-	fmt.Println("Seeding completed")
-	return nil
-}
-
-func ptr[T any](v T) *T {
-	return &v
 }

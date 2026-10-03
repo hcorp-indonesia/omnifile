@@ -43,16 +43,17 @@ type PasswordResetToken struct {
 
 	ID        uuid.UUID  `bun:"type:uuid,pk,default:gen_random_uuid()" json:"id"`
 	UserID    uuid.UUID  `bun:"user_id,type:uuid,notnull" json:"user_id"`
-	TokenHash string     `bun:"token_hash,notnull,unique" json:"-"`
+	Token     string     `bun:"token,notnull,unique" json:"-"`
 	ExpiresAt time.Time  `bun:"expires_at,notnull" json:"expires_at"`
 	UsedAt    *time.Time `bun:"used_at" json:"-"`
 	CreatedAt time.Time  `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 }
 
 type RegisterRequest struct {
-	Name     string `json:"name" validate:"required,min=2,max=100"`
-	Email    string `json:"email" validate:"required,email"`
-	Password string `json:"password" validate:"required,min=8,max=100"`
+	Name            string `json:"name" validate:"required,min=2,max=100"`
+	Email           string `json:"email" validate:"required,email"`
+	Password        string `json:"password" validate:"required"`
+	ConfirmPassword string `json:"confirm_password" validate:"required"`
 }
 
 type LoginRequest struct {
@@ -73,8 +74,8 @@ type RequestPasswordResetRequest struct {
 
 type ResetPasswordRequest struct {
 	Token           string `json:"token" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required,min=8,max=100"`
-	ConfirmPassword string `json:"confirm_password" validate:"required,min=8,max=100"`
+	NewPassword     string `json:"new_password" validate:"required"`
+	ConfirmPassword string `json:"confirm_password" validate:"required"`
 }
 
 type UserResponse struct {

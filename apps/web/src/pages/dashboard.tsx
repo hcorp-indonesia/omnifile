@@ -1,6 +1,8 @@
 import { cn } from "@/lib/utils";
-import { ArrowRight, FileText, Image, Music2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { useAuthStore } from "@/store/auth-store";
+import { ArrowRight, FileText, Image, Lock, Music2 } from "lucide-react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 const features = [
   {
@@ -10,6 +12,7 @@ const features = [
     icon: FileText,
     bg: "bg-red-400",
     path: "/pdf",
+    requiresAuth: false,
   },
   {
     title: "Image",
@@ -18,18 +21,22 @@ const features = [
     icon: Image,
     bg: "bg-purple-400",
     path: "/image",
+    requiresAuth: true,
   },
   {
     title: "Audio",
-    description:
-      "Audio conversion and optimization tools are coming soon.",
+    description: "Audio conversion and optimization tools are coming soon.",
     icon: Music2,
     bg: "bg-yellow-400",
     path: "/audio",
+    requiresAuth: true,
   },
 ];
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   return (
     <div className={cn("relative", "space-y-12", "pb-12", "pt-4")}>
       <div
@@ -172,9 +179,20 @@ export default function DashboardPage() {
         {/* Feature Cards Grid (PDF, Image, Audio) */}
         <div className={cn("grid", "gap-8", "md:grid-cols-3", "pt-8")}>
           {features.map((feature) => (
-            <Link
+            <div
               key={feature.title}
-              to={feature.path}
+              onClick={() => {
+                if (feature.requiresAuth && !isAuthenticated) {
+                  toast.error(
+                    `${feature.title} is locked. Please login first.`,
+                  );
+                  navigate("/login", {
+                    state: { backgroundLocation: location },
+                  });
+                  return;
+                }
+                navigate(feature.path);
+              }}
               className={cn(
                 "group",
                 "block",
@@ -190,8 +208,39 @@ export default function DashboardPage() {
                 "hover:-translate-y-2",
                 "hover:shadow-[8px_8px_0_0_#111827]",
                 "dark:hover:shadow-[8px_8px_0_0_#000]",
+                "relative",
+                "cursor-pointer",
               )}
             >
+              {feature.requiresAuth && !isAuthenticated && (
+                <span
+                  title="Login required to access this feature"
+                  className={cn(
+                    "absolute",
+                    "top-6",
+                    "right-6",
+                    "flex",
+                    "items-center",
+                    "gap-1",
+                    "rounded-xl",
+                    "border-2",
+                    "border-gray-900",
+                    "dark:border-gray-700",
+                    "bg-amber-400",
+                    "px-2.5",
+                    "py-1",
+                    "text-xs",
+                    "font-black",
+                    "text-gray-900",
+                    "shadow-[2px_2px_0_0_#111827]",
+                    "dark:shadow-[2px_2px_0_0_#000]",
+                  )}
+                >
+                  <Lock className={cn("h-3.5", "w-3.5", "stroke-[2.5]")} />
+                  Lock
+                </span>
+              )}
+
               <div
                 className={cn(
                   "flex",
@@ -248,9 +297,16 @@ export default function DashboardPage() {
                   "transition-all",
                 )}
               >
-                Coba Sekarang <ArrowRight className={cn("w-5", "h-5")} />
+                {feature.requiresAuth && !isAuthenticated
+                  ? "Login to Access"
+                  : "Try Now"}{" "}
+                {feature.requiresAuth && !isAuthenticated ? (
+                  <Lock className={cn("w-4", "h-4", "text-amber-500")} />
+                ) : (
+                  <ArrowRight className={cn("w-5", "h-5")} />
+                )}
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </div>

@@ -3,6 +3,7 @@ import {
     CheckCircle2,
     Crop,
     Image,
+    Lock,
     Minimize2,
     RefreshCw,
     Sparkles,
@@ -10,10 +11,12 @@ import {
     X,
 } from "lucide-react";
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
+import { useAuthStore } from "@/store/auth-store";
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 type ImageToolId =
   | "image-converter"
@@ -36,7 +39,7 @@ const imageTools: ImageTool[] = [
   {
     id: "image-converter",
     title: "Image Converter",
-    description: "Konversi gambar ke JPG, PNG, WebP, AVIF, dan format lainnya.",
+    description: "Convert images to JPG, PNG, WebP, AVIF, and other formats.",
     badge: "Convert",
     icon: Image,
     bg: "bg-emerald-300",
@@ -45,7 +48,7 @@ const imageTools: ImageTool[] = [
   {
     id: "upscale",
     title: "Upscale Image",
-    description: "Tingkatkan resolusi foto hingga kualitas HD dengan mudah.",
+    description: "Enhance photo resolution up to HD quality effortlessly.",
     badge: "Enhance",
     icon: Sparkles,
     bg: "bg-amber-300",
@@ -54,7 +57,7 @@ const imageTools: ImageTool[] = [
   {
     id: "compress",
     title: "Compress Image",
-    description: "Kecilkan ukuran file gambar tanpa mengorbankan kualitas.",
+    description: "Reduce image file size without sacrificing quality.",
     badge: "Optimize",
     icon: Minimize2,
     bg: "bg-rose-300",
@@ -63,7 +66,7 @@ const imageTools: ImageTool[] = [
   {
     id: "crop",
     title: "Crop Image",
-    description: "Potong gambar sesuai ukuran dan framing yang kamu butuhkan.",
+    description: "Crop images to your required dimensions and framing.",
     badge: "Edit",
     icon: Crop,
     bg: "bg-teal-300",
@@ -72,7 +75,7 @@ const imageTools: ImageTool[] = [
   {
     id: "remove-bg",
     title: "Remove Background",
-    description: "Hapus background foto dan siapkan gambar transparan.",
+    description: "Remove photo backgrounds and generate transparent images.",
     badge: "AI Powered",
     icon: Image,
     bg: "bg-purple-300",
@@ -81,12 +84,14 @@ const imageTools: ImageTool[] = [
 ];
 
 export default function ImagePage() {
+  const navigate = useNavigate();
   const location = useLocation();
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const routeState = location.state as {
     mediaTab?: "convert" | "upscale" | "compress" | "crop" | "remove-bg";
     targetFormat?: string;
   } | null;
-  const initialToolId = routeState?.mediaTab
+  const initialToolId = routeState?.mediaTab && isAuthenticated
     ? routeState.mediaTab === "convert"
       ? "image-converter"
       : routeState.mediaTab
@@ -102,6 +107,11 @@ export default function ImagePage() {
   const [isCompleted, setIsCompleted] = useState(false);
 
   const handleOpenTool = (tool: ImageTool) => {
+    if (!isAuthenticated) {
+      toast.error(`${tool.title} is locked. Please login first.`);
+      navigate("/login", { state: { backgroundLocation: location } });
+      return;
+    }
     setActiveTool(tool);
     setFile(null);
     setIsProcessing(false);
@@ -125,7 +135,7 @@ export default function ImagePage() {
 
   const handleProcess = () => {
     if (!file || !activeTool) {
-      toast.error("Pilih satu gambar terlebih dahulu!");
+      toast.error("Please select an image first!");
       return;
     }
 
@@ -133,7 +143,7 @@ export default function ImagePage() {
     setTimeout(() => {
       setIsProcessing(false);
       setIsCompleted(true);
-      toast.success(`${activeTool.title} berhasil diproses!`);
+      toast.success(`${activeTool.title} processed successfully!`);
     }, 1500);
   };
 
@@ -172,31 +182,19 @@ export default function ImagePage() {
 
       <div className={cn("grid", "gap-6", "pt-4", "sm:grid-cols-2", "lg:grid-cols-3", "xl:grid-cols-4")}>
         {imageTools.map((tool) => (
-          <button
+          <Card
             key={tool.id}
-            type="button"
+            as="button"
+            variant="interactive"
+            rounded="3xl"
             onClick={() => handleOpenTool(tool)}
             className={cn(
               "group",
               "flex",
-              "cursor-pointer",
               "flex-col",
               "justify-between",
-              "rounded-3xl",
-              "border-3",
-              "border-gray-900",
-              "bg-white",
               "p-6",
               "text-left",
-              "shadow-[4px_4px_0_0_#111827]",
-              "transition-all",
-              "duration-200",
-              "hover:-translate-y-2",
-              "hover:shadow-[8px_8px_0_0_#111827]",
-              "dark:border-gray-700",
-              "dark:bg-[#16181d]",
-              "dark:shadow-[4px_4px_0_0_#000]",
-              "dark:hover:shadow-[8px_8px_0_0_#000]",
             )}
           >
             <div>
@@ -219,9 +217,36 @@ export default function ImagePage() {
                 >
                   <tool.icon className={cn("h-7", "w-7", "text-gray-900")} />
                 </div>
-                <span className={cn("rounded-xl", "border-2", "border-gray-900", "bg-gray-100", "px-2.5", "py-1", "text-xs", "font-bold", "text-gray-800", "dark:border-gray-700", "dark:bg-[#1e222a]", "dark:text-gray-200")}>
-                  {tool.badge}
-                </span>
+                <div className="flex items-center gap-2">
+                  {!isAuthenticated && (
+                    <span
+                      title="Login required to access this feature"
+                      className={cn(
+                        "flex",
+                        "items-center",
+                        "gap-1",
+                        "rounded-xl",
+                        "border-2",
+                        "border-gray-900",
+                        "dark:border-gray-700",
+                        "bg-amber-400",
+                        "px-2.5",
+                        "py-1",
+                        "text-xs",
+                        "font-black",
+                        "text-gray-900",
+                        "shadow-[2px_2px_0_0_#111827]",
+                        "dark:shadow-[2px_2px_0_0_#000]",
+                      )}
+                    >
+                      <Lock className="h-3.5 w-3.5 stroke-[2.5]" />
+                      Lock
+                    </span>
+                  )}
+                  <span className={cn("rounded-xl", "border-2", "border-gray-900", "bg-gray-100", "px-2.5", "py-1", "text-xs", "font-bold", "text-gray-800", "dark:border-gray-700", "dark:bg-[#1e222a]", "dark:text-gray-200")}>
+                    {tool.badge}
+                  </span>
+                </div>
               </div>
               <h3 className={cn("mb-2", "text-xl", "font-bold", "text-gray-900", "dark:text-white")}>{tool.title}</h3>
               <p className={cn("mb-6", "line-clamp-3", "text-xs", "font-semibold", "leading-relaxed", "text-gray-600", "dark:text-gray-400")}>
@@ -229,9 +254,14 @@ export default function ImagePage() {
               </p>
             </div>
             <span className={cn("flex", "items-center", "gap-2", "text-sm", "font-bold", "text-gray-900", "transition-all", "group-hover:gap-3", "dark:text-white")}>
-              Coba Sekarang <ArrowRight className={cn("h-4", "w-4")} />
+              {isAuthenticated ? "Try Now" : "Login to Access"}{" "}
+              {isAuthenticated ? (
+                <ArrowRight className={cn("h-4", "w-4")} />
+              ) : (
+                <Lock className={cn("h-4", "w-4", "text-amber-500")} />
+              )}
             </span>
-          </button>
+          </Card>
         ))}
       </div>
 
@@ -244,7 +274,11 @@ export default function ImagePage() {
             }
           }}
         >
-          <div className={cn("relative", "w-full", "max-w-2xl", "rounded-3xl", "border-3", "border-gray-900", "bg-white", "p-6", "shadow-[8px_8px_0_0_#111827]", "dark:border-gray-700", "dark:bg-[#16181d]", "dark:shadow-[8px_8px_0_0_#000]", "sm:p-8")}>
+          <Card
+            variant="elevated"
+            rounded="3xl"
+            className={cn("relative", "w-full", "max-w-2xl", "p-6", "sm:p-8")}
+          >
             <button
               type="button"
               aria-label="Close image tool"
@@ -279,8 +313,8 @@ export default function ImagePage() {
                   <div className={cn("mx-auto", "flex", "h-14", "w-14", "items-center", "justify-center", "rounded-2xl", "border-3", "border-gray-900", "bg-yellow-400", "shadow-[3px_3px_0_0_#111827]")}>
                     <Upload className={cn("h-7", "w-7", "text-gray-900")} />
                   </div>
-                  <p className={cn("text-base", "font-bold", "text-gray-900", "dark:text-white")}>Pilih atau Drag & Drop gambar</p>
-                  <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>Format gambar sesuai tool yang dipilih</p>
+                  <p className={cn("text-base", "font-bold", "text-gray-900", "dark:text-white")}>Select or Drag & Drop image</p>
+                  <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>Supported image format per selected tool</p>
                 </div>
               )}
             </div>
@@ -309,9 +343,9 @@ export default function ImagePage() {
               onClick={handleProcess}
               className={cn("mt-6", "flex", "w-full", "items-center", "justify-center", "gap-2", "rounded-xl", "border-3", "border-gray-900", "bg-purple-400", "px-6", "py-4", "text-lg", "font-bold", "text-gray-900", "shadow-[4px_4px_0_0_#111827]", "transition-all", "hover:-translate-y-1", "hover:bg-purple-500", "disabled:cursor-not-allowed", "disabled:bg-gray-200", "disabled:shadow-none", "dark:border-gray-700", "dark:shadow-[4px_4px_0_0_#000]")}
             >
-              {isProcessing ? <><RefreshCw className={cn("h-6", "w-6", "animate-spin")} /> Processing Magic...</> : `Mulai Proses ${activeTool.title}`}
+              {isProcessing ? <><RefreshCw className={cn("h-6", "w-6", "animate-spin")} /> Processing Magic...</> : `Start Processing ${activeTool.title}`}
             </button>
-          </div>
+          </Card>
         </div>
       )}
     </div>

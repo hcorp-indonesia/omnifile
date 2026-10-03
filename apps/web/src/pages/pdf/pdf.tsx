@@ -1,4 +1,6 @@
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import {
   ArrowRight,
   CheckCircle2,
@@ -16,6 +18,7 @@ import {
   X,
 } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 interface PDFTool {
@@ -33,7 +36,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-word",
     title: "PDF to Word",
     description:
-      "Konversi dokumen PDF ke format Microsoft Word (.docx) dengan teks yang dapat diedit.",
+      "Convert PDF documents to Microsoft Word (.docx) format with editable text.",
     badge: "Convert",
     icon: FileText,
     bg: "bg-blue-300",
@@ -42,7 +45,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-excel",
     title: "PDF to Excel",
     description:
-      "Ekstrak tabel dan data angka dari dokumen PDF ke spreadsheet Excel (.xlsx).",
+      "Extract tables and numerical data from PDF documents into Excel spreadsheets (.xlsx).",
     badge: "Convert",
     icon: FileSpreadsheet,
     bg: "bg-emerald-300",
@@ -51,7 +54,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-jpg",
     title: "PDF to JPG",
     description:
-      "Ubah setiap lembar halaman PDF menjadi file gambar format JPG berkualitas jernih.",
+      "Convert each PDF page into crisp, high-quality JPG image files.",
     badge: "Image",
     icon: ImageIcon,
     bg: "bg-amber-300",
@@ -60,7 +63,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-jpeg",
     title: "PDF to JPEG",
     description:
-      "Simpan seluruh halaman dokumen PDF menjadi gambar JPEG standar untuk kemudahan berbagi.",
+      "Save all PDF pages as standard JPEG images for easy sharing.",
     badge: "Image",
     icon: ImageIcon,
     bg: "bg-yellow-300",
@@ -69,7 +72,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-png",
     title: "PDF to PNG",
     description:
-      "Konversi halaman dokumen PDF menjadi gambar PNG transparan berkualitas tinggi (HD).",
+      "Convert PDF pages into high-definition transparent PNG images.",
     badge: "Image",
     icon: ImageIcon,
     bg: "bg-sky-300",
@@ -78,7 +81,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-webp",
     title: "PDF to WebP",
     description:
-      "Ubah halaman PDF ke format WebP modern yang ringan untuk kecepatan website.",
+      "Convert PDF pages into lightweight, modern WebP images for web speed.",
     badge: "Image",
     icon: ImageIcon,
     bg: "bg-indigo-300",
@@ -87,7 +90,7 @@ const pdfTools: PDFTool[] = [
     id: "pdf-to-avif",
     title: "PDF to AVIF",
     description:
-      "Konversi halaman PDF ke format AVIF generasi terbaru dengan rasio kompresi maksimal.",
+      "Convert PDF pages to next-generation AVIF images with maximum compression efficiency.",
     badge: "Image",
     icon: ImageIcon,
     bg: "bg-rose-300",
@@ -96,7 +99,7 @@ const pdfTools: PDFTool[] = [
     id: "merge-pdf",
     title: "Merge PDF",
     description:
-      "Gabungkan beberapa file PDF terpisah menjadi satu dokumen PDF utuh secara berurutan.",
+      "Merge multiple separate PDF files into a single ordered document.",
     badge: "Organize",
     icon: Layers,
     bg: "bg-purple-300",
@@ -106,7 +109,7 @@ const pdfTools: PDFTool[] = [
     id: "split-pdf",
     title: "Split PDF",
     description:
-      "Pisahkan rentang halaman tertentu atau pecah file PDF menjadi dokumen terpisah.",
+      "Extract specific page ranges or split a PDF file into separate documents.",
     badge: "Organize",
     icon: Scissors,
     bg: "bg-pink-300",
@@ -115,7 +118,7 @@ const pdfTools: PDFTool[] = [
     id: "ocr-pdf",
     title: "OCR PDF",
     description:
-      "Ekstrak dan kenali teks dari pindaian scan PDF menjadi teks yang bisa disalin.",
+      "Extract and recognize text from scanned PDFs into selectable, copyable text.",
     badge: "AI Powered",
     icon: ScanText,
     bg: "bg-teal-300",
@@ -124,7 +127,7 @@ const pdfTools: PDFTool[] = [
     id: "remove-pdf",
     title: "Remove PDF",
     description:
-      "Hapus satu atau beberapa nomor halaman yang tidak diinginkan dari file dokumen PDF.",
+      "Delete one or more unwanted page numbers from your PDF document.",
     badge: "Edit",
     icon: FileMinus,
     bg: "bg-red-300",
@@ -133,7 +136,7 @@ const pdfTools: PDFTool[] = [
     id: "compress-pdf",
     title: "Compress PDF",
     description:
-      "Kecilkan ukuran file PDF secara drastis tanpa mengurangi keterbacaan teks dan gambar.",
+      "Drastically reduce PDF file size without sacrificing readability.",
     badge: "Optimize",
     icon: FileArchive,
     bg: "bg-orange-300",
@@ -141,6 +144,7 @@ const pdfTools: PDFTool[] = [
 ];
 
 export default function PDFPage() {
+  const navigate = useNavigate();
   const [activeTool, setActiveTool] = useState<PDFTool | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -152,6 +156,16 @@ export default function PDFPage() {
   >("recommended");
 
   const handleOpenTool = (tool: PDFTool) => {
+    if (
+      tool.id === "pdf-to-jpg" ||
+      tool.id === "pdf-to-jpeg" ||
+      tool.id === "pdf-to-png" ||
+      tool.id === "pdf-to-webp" ||
+      tool.id === "pdf-to-avif"
+    ) {
+      navigate(`/pdf/${tool.id}`);
+      return;
+    }
     setActiveTool(tool);
     setFiles([]);
     setIsProcessing(false);
@@ -179,7 +193,7 @@ export default function PDFPage() {
 
   const handleProcess = () => {
     if (files.length === 0) {
-      toast.error("Pilih setidaknya satu file PDF terlebih dahulu!");
+      toast.error("Please select at least one PDF file first!");
       return;
     }
 
@@ -187,7 +201,7 @@ export default function PDFPage() {
       (activeTool?.id === "split-pdf" || activeTool?.id === "remove-pdf") &&
       !pageInput.trim()
     ) {
-      toast.error("Masukkan nomor halaman yang ingin diproses!");
+      toast.error("Please enter the page numbers to process!");
       return;
     }
 
@@ -196,12 +210,12 @@ export default function PDFPage() {
     setTimeout(() => {
       setIsProcessing(false);
       setIsCompleted(true);
-      toast.success(`${activeTool?.title} berhasil diproses!`);
+      toast.success(`${activeTool?.title} processed successfully!`);
     }, 2000);
   };
 
   const handleDownload = () => {
-    toast.success("Mengunduh hasil file PDF...");
+    toast.success("Downloading processed PDF document...");
   };
 
   const isImageConversion = activeTool?.badge === "Image";
@@ -261,36 +275,26 @@ export default function PDFPage() {
           "sm:grid-cols-2",
           "lg:grid-cols-3",
           "xl:grid-cols-4",
+          "auto-rows-fr",
           "pt-4",
         )}
       >
         {pdfTools.map((tool) => (
-          <div
+          <Card
             key={tool.id}
+            variant="interactive"
+            rounded="3xl"
             onClick={() => handleOpenTool(tool)}
             className={cn(
               "group",
-              "cursor-pointer",
               "flex",
+              "h-full",
               "flex-col",
               "justify-between",
-              "rounded-3xl",
-              "border-3",
-              "border-gray-900",
-              "dark:border-gray-700",
-              "bg-white",
-              "dark:bg-[#16181d]",
               "p-6",
-              "transition-all",
-              "duration-200",
-              "hover:-translate-y-2",
-              "hover:shadow-[8px_8px_0_0_#111827]",
-              "dark:hover:shadow-[8px_8px_0_0_#000]",
-              "shadow-[4px_4px_0_0_#111827]",
-              "dark:shadow-[4px_4px_0_0_#000]",
             )}
           >
-            <div>
+            <div className="flex flex-col flex-1">
               {/* Badge & Icon */}
               <div
                 className={cn(
@@ -361,7 +365,8 @@ export default function PDFPage() {
                   "text-xs",
                   "leading-relaxed",
                   "mb-6",
-                  "line-clamp-3",
+                  "line-clamp-2",
+                  "h-10",
                 )}
               >
                 {tool.description}
@@ -382,9 +387,9 @@ export default function PDFPage() {
                 "transition-all",
               )}
             >
-              Coba Sekarang <ArrowRight className={cn("w-4", "h-4")} />
+              Try Now <ArrowRight className={cn("w-4", "h-4")} />
             </div>
-          </div>
+          </Card>
         ))}
       </div>
 
@@ -403,21 +408,15 @@ export default function PDFPage() {
             "backdrop-blur-xs",
           )}
         >
-          <div
+          <Card
+            variant="elevated"
+            rounded="3xl"
             className={cn(
               "relative",
               "w-full",
               "max-w-2xl",
-              "rounded-3xl",
-              "border-3",
-              "border-gray-900",
-              "dark:border-gray-700",
-              "bg-white",
-              "dark:bg-[#16181d]",
               "p-6",
               "sm:p-8",
-              "shadow-[8px_8px_0_0_#111827]",
-              "dark:shadow-[8px_8px_0_0_#000]",
               "animate-in",
               "fade-in",
               "zoom-in-95",
@@ -567,7 +566,7 @@ export default function PDFPage() {
                         "dark:text-white",
                       )}
                     >
-                      Pilih atau Drag & Drop file PDF
+                      Select or Drag & Drop PDF files
                     </p>
                     <p
                       className={cn(
@@ -579,8 +578,8 @@ export default function PDFPage() {
                       )}
                     >
                       {activeTool.acceptMultiple
-                        ? "Dapat memilih beberapa file PDF"
-                        : "Format didukung: .pdf"}
+                        ? "Multiple PDF files supported"
+                        : "Supported format: .pdf"}
                     </p>
                   </div>
                 </div>
@@ -616,7 +615,7 @@ export default function PDFPage() {
                   >
                     {files.length === 1
                       ? files[0].name
-                      : `${files.length} file PDF dipilih`}
+                      : `${files.length} PDF files selected`}
                   </p>
                   <p
                     className={cn(
@@ -626,7 +625,7 @@ export default function PDFPage() {
                       "dark:text-gray-400",
                     )}
                   >
-                    Klik untuk mengganti file
+                    Click to replace file
                   </p>
                 </div>
               )}
@@ -644,7 +643,7 @@ export default function PDFPage() {
                     "dark:text-gray-100",
                   )}
                 >
-                  Kualitas Output Gambar
+                  Image Output Quality
                 </label>
                 <div className={cn("grid", "grid-cols-2", "gap-2")}>
                   <button
@@ -664,7 +663,7 @@ export default function PDFPage() {
                         : "bg-white text-gray-700 dark:bg-[#1a1c22] dark:text-gray-300",
                     )}
                   >
-                    Standar (150 DPI)
+                    Standard (150 DPI)
                   </button>
                   <button
                     type="button"
@@ -691,44 +690,20 @@ export default function PDFPage() {
 
             {(activeTool.id === "split-pdf" ||
               activeTool.id === "remove-pdf") && (
-              <div className={cn("mt-4", "space-y-2")}>
-                <label
-                  className={cn(
-                    "block",
-                    "text-xs",
-                    "font-bold",
-                    "text-gray-900",
-                    "dark:text-gray-100",
-                  )}
-                >
-                  {activeTool.id === "split-pdf"
-                    ? "Rentang Halaman (Contoh: 1-3, 5)"
-                    : "Nomor Halaman yang Dihapus (Contoh: 2, 4)"}
-                </label>
-                <input
-                  type="text"
+              <div className={cn("mt-4")}>
+                <Input
+                  label={
+                    activeTool.id === "split-pdf"
+                      ? "Page Range (e.g. 1-3, 5)"
+                      : "Page Numbers to Remove (e.g. 2, 4)"
+                  }
                   placeholder={
                     activeTool.id === "split-pdf"
-                      ? "Contoh: 1-5"
-                      : "Contoh: 2, 3"
+                      ? "e.g. 1-5"
+                      : "e.g. 2, 3"
                   }
                   value={pageInput}
                   onChange={(e) => setPageInput(e.target.value)}
-                  className={cn(
-                    "w-full",
-                    "rounded-xl",
-                    "border-3",
-                    "border-gray-900",
-                    "dark:border-gray-700",
-                    "bg-white",
-                    "dark:bg-[#1a1c22]",
-                    "p-3",
-                    "text-sm",
-                    "font-bold",
-                    "text-gray-900",
-                    "dark:text-white",
-                    "focus:outline-none",
-                  )}
                 />
               </div>
             )}
@@ -744,14 +719,14 @@ export default function PDFPage() {
                     "dark:text-gray-100",
                   )}
                 >
-                  Tingkat Kompresi
+                  Compression Level
                 </label>
                 <div className={cn("grid", "grid-cols-3", "gap-2")}>
                   {(
                     [
-                      { id: "extreme", label: "Ekstrem (Terkecil)" },
-                      { id: "recommended", label: "Rekomendasi" },
-                      { id: "low", label: "Rendah (Kualitas Max)" },
+                      { id: "extreme", label: "Extreme (Smallest)" },
+                      { id: "recommended", label: "Recommended" },
+                      { id: "low", label: "Low (Max Quality)" },
                     ] as const
                   ).map((lvl) => (
                     <button
@@ -811,10 +786,10 @@ export default function PDFPage() {
                   {isProcessing ? (
                     <>
                       <RefreshCw className={cn("h-5", "w-5", "animate-spin")} />
-                      Memproses File...
+                      Processing File...
                     </>
                   ) : (
-                    <>Mulai Proses {activeTool.title}</>
+                    <>Start Processing {activeTool.title}</>
                   )}
                 </button>
               ) : (
@@ -842,11 +817,11 @@ export default function PDFPage() {
                   )}
                 >
                   <Download className={cn("h-5", "w-5")} />
-                  Unduh Dokumen Hasil
+                  Download Result Document
                 </button>
               )}
             </div>
-          </div>
+          </Card>
         </div>
       )}
     </div>

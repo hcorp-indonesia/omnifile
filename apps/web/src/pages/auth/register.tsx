@@ -1,8 +1,7 @@
 import { cn } from "@/lib/utils";
-import { ArrowRight, CheckCircle2, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { toast } from "sonner";
 
 import { useGoogleAuthMutation, useRegisterMutation } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
@@ -16,7 +15,6 @@ export default function RegisterPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [agreeTerms, setAgreeTerms] = useState(true);
 
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const registerMutation = useRegisterMutation();
@@ -33,31 +31,13 @@ export default function RegisterPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email || !password || !confirmPassword) {
-      toast.error("Please fill in all registration fields!");
-      return;
-    }
-
-    if (password.length < 8) {
-      toast.error("Password must be at least 8 characters long!");
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error("Confirm password does not match!");
-      return;
-    }
-
-    if (!agreeTerms) {
-      toast.error("You must agree to the Terms & Conditions to proceed.");
-      return;
-    }
 
     registerMutation.mutate(
       {
         name,
         email,
         password,
+        confirm_password: confirmPassword,
       },
       {
         onSuccess: () => {
@@ -532,65 +512,6 @@ export default function RegisterPage() {
               </div>
             </div>
 
-            {/* Terms Agreement Checkbox */}
-            <div className={cn("flex", "items-start", "gap-2.5", "pt-1")}>
-              <button
-                type="button"
-                onClick={() => setAgreeTerms(!agreeTerms)}
-                className={cn(
-                  "w-5",
-                  "h-5",
-                  "mt-0.5",
-                  "shrink-0",
-                  "rounded-md",
-                  "border-2",
-                  "border-gray-900",
-                  "dark:border-gray-600",
-                  "flex",
-                  "items-center",
-                  "justify-center",
-                  "transition-all",
-                  agreeTerms
-                    ? "bg-purple-400 dark:bg-purple-400 text-gray-900"
-                    : "bg-white dark:bg-[#1a1c22]",
-                )}
-              >
-                {agreeTerms && (
-                  <CheckCircle2 className={cn("w-4", "h-4", "stroke-3")} />
-                )}
-              </button>
-              <span
-                onClick={() => setAgreeTerms(!agreeTerms)}
-                className={cn(
-                  "text-xs",
-                  "font-bold",
-                  "text-gray-700",
-                  "dark:text-gray-300",
-                  "cursor-pointer",
-                  "select-none",
-                  "leading-tight",
-                  "translate-y-px",
-                )}
-              >
-                I agree to the{" "}
-                <a
-                  href="#terms"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    toast.info("Terms of Service page.");
-                  }}
-                  className={cn(
-                    "text-purple-600",
-                    "dark:text-purple-400",
-                    "hover:underline",
-                  )}
-                >
-                  Terms & Conditions
-                </a>{" "}
-                and Privacy Policy.
-              </span>
-            </div>
-
             {/* Submit Button */}
             <button
               type="submit"
@@ -641,8 +562,7 @@ export default function RegisterPage() {
                 />
               ) : (
                 <>
-                  <span>Create Account Now</span>
-                  <ArrowRight className={cn("w-4", "h-4")} />
+                  <span>Create Account</span>
                 </>
               )}
             </button>
@@ -668,9 +588,9 @@ export default function RegisterPage() {
               )}
             >
               Already have an account?{" "}
-                <Link
-                  to="/login"
-                  state={location.state}
+              <Link
+                to="/login"
+                state={location.state}
                 className={cn(
                   "text-purple-600",
                   "dark:text-purple-400",
@@ -679,7 +599,7 @@ export default function RegisterPage() {
                   "ml-1",
                 )}
               >
-                Sign In
+                Login
               </Link>
             </p>
           </div>

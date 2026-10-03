@@ -1,8 +1,9 @@
-package auth
+package utils
 
 import (
 	"crypto/tls"
 	"fmt"
+	"net/mail"
 	"net/smtp"
 	"net/url"
 	"os"
@@ -85,7 +86,11 @@ func sendSMTPMessage(client *smtp.Client, auth smtp.Auth, from, to string, messa
 	if err := client.Auth(auth); err != nil {
 		return err
 	}
-	if err := client.Mail(from); err != nil {
+	envelope := from
+	if addr, err := mail.ParseAddress(from); err == nil {
+		envelope = addr.Address
+	}
+	if err := client.Mail(envelope); err != nil {
 		return err
 	}
 	if err := client.Rcpt(to); err != nil {

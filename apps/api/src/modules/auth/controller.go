@@ -4,7 +4,6 @@ import (
 	"os"
 	"time"
 
-	"magic-converter/src/middleware"
 	"magic-converter/src/utils"
 
 	"github.com/gofiber/fiber/v3"
@@ -70,11 +69,7 @@ func (c *AuthController) clearAuthCookies(ctx fiber.Ctx) {
 func (c *AuthController) Register(ctx fiber.Ctx) error {
 	var req RegisterRequest
 	if err := ctx.Bind().Body(&req); err != nil {
-		return err
-	}
-
-	if err := middleware.ValidateStruct(&req); err != nil {
-		return err
+		return utils.ErrBadRequest("Invalid request body")
 	}
 
 	ip := ctx.IP()
@@ -92,11 +87,7 @@ func (c *AuthController) Register(ctx fiber.Ctx) error {
 func (c *AuthController) Login(ctx fiber.Ctx) error {
 	var req LoginRequest
 	if err := ctx.Bind().Body(&req); err != nil {
-		return err
-	}
-
-	if err := middleware.ValidateStruct(&req); err != nil {
-		return err
+		return utils.ErrBadRequest("Invalid request body")
 	}
 
 	ip := ctx.IP()
@@ -114,11 +105,7 @@ func (c *AuthController) Login(ctx fiber.Ctx) error {
 func (c *AuthController) GoogleAuth(ctx fiber.Ctx) error {
 	var req GoogleAuthRequest
 	if err := ctx.Bind().Body(&req); err != nil {
-		return err
-	}
-
-	if err := middleware.ValidateStruct(&req); err != nil {
-		return err
+		return utils.ErrBadRequest("Invalid request body")
 	}
 
 	ip := ctx.IP()
@@ -204,10 +191,7 @@ func (c *AuthController) Logout(ctx fiber.Ctx) error {
 func (c *AuthController) RequestPasswordReset(ctx fiber.Ctx) error {
 	var req RequestPasswordResetRequest
 	if err := ctx.Bind().Body(&req); err != nil {
-		return err
-	}
-	if err := middleware.ValidateStruct(&req); err != nil {
-		return err
+		return utils.ErrBadRequest("Invalid request body")
 	}
 
 	if err := c.service.RequestPasswordReset(ctx.Context(), &req); err != nil {
@@ -220,10 +204,7 @@ func (c *AuthController) RequestPasswordReset(ctx fiber.Ctx) error {
 func (c *AuthController) ResetPassword(ctx fiber.Ctx) error {
 	var req ResetPasswordRequest
 	if err := ctx.Bind().Body(&req); err != nil {
-		return err
-	}
-	if err := middleware.ValidateStruct(&req); err != nil {
-		return err
+		return utils.ErrBadRequest("Invalid request body")
 	}
 
 	if err := c.service.ResetPassword(ctx.Context(), &req); err != nil {

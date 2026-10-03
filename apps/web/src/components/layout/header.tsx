@@ -10,6 +10,8 @@ import {
   Image as ImageIcon,
   Layers,
   LayoutGrid,
+  Lock,
+  LogOut,
   Minimize2,
   Moon,
   Music,
@@ -17,27 +19,29 @@ import {
   Scissors,
   Sparkles,
   Sun,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "../../lib/utils";
 
 const pdfConvertTools = [
   {
     title: "PDF to Word",
-    desc: "Ubah PDF ke DOCX",
+    desc: "Convert PDF to DOCX",
     icon: FileText,
     bg: "bg-blue-300",
   },
   {
     title: "PDF to Excel",
-    desc: "Ekstrak tabel ke XLS",
+    desc: "Extract tables to XLS",
     icon: FileSpreadsheet,
     bg: "bg-emerald-300",
   },
   {
     title: "PDF to JPG",
-    desc: "Simpan halaman jadi JPG",
+    desc: "Save pages as JPG",
     icon: ImageIcon,
     bg: "bg-amber-300",
   },
@@ -46,25 +50,25 @@ const pdfConvertTools = [
 const pdfEditTools = [
   {
     title: "Merge PDF",
-    desc: "Gabung beberapa PDF",
+    desc: "Merge multiple PDFs",
     icon: Layers,
     bg: "bg-purple-300",
   },
   {
     title: "Split PDF",
-    desc: "Pisah halaman dokumen",
+    desc: "Split document pages",
     icon: Scissors,
     bg: "bg-pink-300",
   },
   {
     title: "Compress PDF",
-    desc: "Kecilkan ukuran file",
+    desc: "Compress file size",
     icon: FileArchive,
     bg: "bg-red-300",
   },
   {
     title: "OCR PDF",
-    desc: "Ekstrak teks dari scan",
+    desc: "Extract text from scans",
     icon: ScanText,
     bg: "bg-teal-300",
   },
@@ -75,7 +79,7 @@ const pdfTools = [...pdfConvertTools, ...pdfEditTools];
 const aiMediaTools = [
   {
     title: "AI Assistant",
-    desc: "Chat & tanya dokumen",
+    desc: "Chat & query documents",
     icon: Bot,
     bg: "bg-indigo-300",
   },
@@ -84,35 +88,35 @@ const aiMediaTools = [
 const imageTools = [
   {
     title: "Image Converter",
-    desc: "Konversi format gambar",
+    desc: "Convert image formats",
     icon: ImageIcon,
     bg: "bg-emerald-300",
     tab: "convert",
   },
   {
     title: "Upscale Image",
-    desc: "Naikkan resolusi foto",
+    desc: "Enhance photo resolution",
     icon: Sparkles,
     bg: "bg-amber-300",
     tab: "upscale",
   },
   {
     title: "Compress Image",
-    desc: "Kecilkan ukuran gambar",
+    desc: "Compress image size",
     icon: Minimize2,
     bg: "bg-rose-300",
     tab: "compress",
   },
   {
     title: "Crop Image",
-    desc: "Potong dan rapikan foto",
+    desc: "Crop and frame photos",
     icon: Crop,
     bg: "bg-teal-300",
     tab: "crop",
   },
   {
     title: "Remove Background",
-    desc: "Hapus background foto",
+    desc: "Remove photo background",
     icon: Scissors,
     bg: "bg-purple-300",
     tab: "remove-bg",
@@ -122,7 +126,7 @@ const imageTools = [
 const generalTools = [
   {
     title: "Audio Converter",
-    desc: "Ubah format audio/musik",
+    desc: "Convert audio/music formats",
     icon: Music,
     bg: "bg-blue-300",
   },
@@ -133,6 +137,7 @@ export default function Header() {
   const { theme, toggleTheme } = useThemeStore();
   const [isToolsOpen, setIsToolsOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isSignOutModalOpen, setIsSignOutModalOpen] = useState(false);
   const toolsRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
@@ -531,7 +536,9 @@ export default function Header() {
                                 "transition-transform",
                               )}
                             >
-                              <tool.icon className={cn("h-4", "w-4", "text-gray-900")} />
+                              <tool.icon
+                                className={cn("h-4", "w-4", "text-gray-900")}
+                              />
                             </div>
                             <div className={cn("min-w-0")}>
                               <div
@@ -786,6 +793,9 @@ export default function Header() {
           <Link
             to="/image"
             className={cn(
+              "flex",
+              "items-center",
+              "gap-1.5",
               "px-3",
               "py-2",
               "rounded-xl",
@@ -801,10 +811,16 @@ export default function Header() {
             )}
           >
             Image
+            {!isAuthenticated && (
+              <Lock className="h-3 w-3 text-amber-500 stroke-[2.5]" />
+            )}
           </Link>
           <Link
             to="/audio"
             className={cn(
+              "flex",
+              "items-center",
+              "gap-1.5",
               "px-3",
               "py-2",
               "rounded-xl",
@@ -820,6 +836,9 @@ export default function Header() {
             )}
           >
             Audio
+            {!isAuthenticated && (
+              <Lock className="h-3 w-3 text-amber-500 stroke-[2.5]" />
+            )}
           </Link>
         </nav>
 
@@ -844,9 +863,10 @@ export default function Header() {
               "shrink-0",
               "items-center",
               "justify-center",
-              "rounded-xl",
+              "rounded-full",
               "border-3",
               "border-gray-900",
+              "dark:border-gray-700",
               "bg-emerald-400",
               "text-gray-900",
               "transition-colors",
@@ -871,14 +891,12 @@ export default function Header() {
                   "shrink-0",
                   "items-center",
                   "justify-center",
-                  "rounded-xl",
+                  "rounded-full",
                   "border-3",
                   "border-gray-900",
                   "dark:border-gray-700",
                   "bg-purple-400",
-                  "dark:bg-purple-500/30",
                   "text-gray-900",
-                  "dark:text-purple-200",
                   "font-black",
                   "text-sm",
                   "uppercase",
@@ -900,7 +918,9 @@ export default function Header() {
                     "absolute",
                     "right-0",
                     "top-14",
-                    "w-48",
+                    "min-w-48",
+                    "w-max",
+                    "max-w-xs",
                     "rounded-2xl",
                     "border-3",
                     "border-gray-900",
@@ -917,14 +937,20 @@ export default function Header() {
                     className={cn(
                       "px-3",
                       "py-2",
-                      "text-xs",
-                      "font-bold",
-                      "text-gray-500",
-                      "dark:text-gray-400",
-                      "truncate",
+                      "text-left",
                     )}
                   >
-                    {user.email}
+                    <div
+                      className={cn(
+                        "text-sm",
+                        "font-bold",
+                        "text-gray-900",
+                        "dark:text-white",
+                        "whitespace-nowrap",
+                      )}
+                    >
+                      {user.name || user.email}
+                    </div>
                   </div>
                   <div
                     className={cn(
@@ -937,9 +963,8 @@ export default function Header() {
                   <button
                     onClick={() => {
                       setIsUserMenuOpen(false);
-                      logoutMutation.mutate();
+                      setIsSignOutModalOpen(true);
                     }}
-                    disabled={logoutMutation.isPending}
                     className={cn(
                       "w-full",
                       "flex",
@@ -956,10 +981,10 @@ export default function Header() {
                       "dark:hover:bg-rose-500/10",
                       "transition-colors",
                       "cursor-pointer",
-                      logoutMutation.isPending && "opacity-50 cursor-not-allowed",
                     )}
                   >
-                    {logoutMutation.isPending ? "Signing out..." : "Sign Out"}
+                    <LogOut className={cn("h-4", "w-4")} />
+                    Sign Out
                   </button>
                 </div>
               )}
@@ -1023,6 +1048,207 @@ export default function Header() {
           )}
         </div>
       </div>
+
+      {/* Sign Out Confirmation Modal */}
+      {isSignOutModalOpen &&
+        createPortal(
+          <div
+            className={cn(
+              "fixed",
+              "inset-0",
+              "z-100",
+              "flex",
+              "items-center",
+              "justify-center",
+              "p-4",
+              "bg-black/60",
+              "backdrop-blur-xs",
+              "animate-in",
+              "fade-in",
+              "duration-150",
+            )}
+            onClick={() => {
+              if (!logoutMutation.isPending) setIsSignOutModalOpen(false);
+            }}
+          >
+            <div
+              className={cn(
+                "w-full",
+                "max-w-md",
+                "bg-white",
+                "dark:bg-[#1a1c22]",
+                "border-3",
+                "border-gray-900",
+                "dark:border-gray-700",
+                "rounded-3xl",
+                "p-6",
+                "shadow-[8px_8px_0_0_#111827]",
+                "dark:shadow-[8px_8px_0_0_#000]",
+                "relative",
+                "animate-in",
+                "zoom-in-95",
+                "duration-150",
+              )}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                onClick={() => setIsSignOutModalOpen(false)}
+                disabled={logoutMutation.isPending}
+                className={cn(
+                  "absolute",
+                  "top-4",
+                  "right-4",
+                  "h-8",
+                  "w-8",
+                  "rounded-full",
+                  "border-2",
+                  "border-gray-900",
+                  "dark:border-gray-700",
+                  "flex",
+                  "items-center",
+                  "justify-center",
+                  "text-gray-600",
+                  "dark:text-gray-300",
+                  "hover:bg-gray-100",
+                  "dark:hover:bg-gray-800",
+                  "cursor-pointer",
+                  "transition-colors",
+                )}
+              >
+                <X className={cn("h-4", "w-4")} />
+              </button>
+
+              <div
+                className={cn(
+                  "flex",
+                  "flex-col",
+                  "items-center",
+                  "text-center",
+                )}
+              >
+                <div
+                  className={cn(
+                    "h-16",
+                    "w-16",
+                    "rounded-2xl",
+                    "border-3",
+                    "border-gray-900",
+                    "dark:border-gray-700",
+                    "bg-rose-100",
+                    "dark:bg-rose-950/50",
+                    "text-rose-600",
+                    "dark:text-rose-400",
+                    "flex",
+                    "items-center",
+                    "justify-center",
+                    "mb-4",
+                    "shadow-[3px_3px_0_0_#111827]",
+                    "dark:shadow-[3px_3px_0_0_#000]",
+                  )}
+                >
+                  <LogOut className={cn("h-8", "w-8", "stroke-[2.5]")} />
+                </div>
+
+                <h3
+                  className={cn(
+                    "text-xl",
+                    "font-black",
+                    "text-gray-900",
+                    "dark:text-white",
+                    "mb-2",
+                  )}
+                >
+                  Are you sure?
+                </h3>
+                <p
+                  className={cn(
+                    "text-sm",
+                    "text-gray-600",
+                    "dark:text-gray-400",
+                    "mb-6",
+                    "max-w-xs",
+                  )}
+                >
+                  You will need to login again to access image and audio.
+                </p>
+
+                <div className={cn("flex", "w-full", "gap-3")}>
+                  <button
+                    type="button"
+                    onClick={() => setIsSignOutModalOpen(false)}
+                    disabled={logoutMutation.isPending}
+                    className={cn(
+                      "flex-1",
+                      "py-3",
+                      "px-4",
+                      "rounded-xl",
+                      "border-3",
+                      "border-gray-900",
+                      "dark:border-gray-700",
+                      "bg-gray-100",
+                      "dark:bg-gray-800",
+                      "text-gray-900",
+                      "dark:text-white",
+                      "font-bold",
+                      "text-sm",
+                      "hover:-translate-y-0.5",
+                      "hover:shadow-[3px_3px_0_0_#111827]",
+                      "dark:hover:shadow-[3px_3px_0_0_#000]",
+                      "transition-all",
+                      "cursor-pointer",
+                    )}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      logoutMutation.mutate(undefined, {
+                        onSuccess: () => {
+                          setIsSignOutModalOpen(false);
+                        },
+                      });
+                    }}
+                    disabled={logoutMutation.isPending}
+                    className={cn(
+                      "flex-1",
+                      "py-3",
+                      "px-4",
+                      "rounded-xl",
+                      "border-3",
+                      "border-gray-900",
+                      "dark:border-gray-700",
+                      "bg-rose-500",
+                      "hover:bg-rose-600",
+                      "text-white",
+                      "font-bold",
+                      "text-sm",
+                      "shadow-[3px_3px_0_0_#111827]",
+                      "dark:shadow-[3px_3px_0_0_#000]",
+                      "hover:-translate-y-0.5",
+                      "hover:shadow-[4px_4px_0_0_#111827]",
+                      "dark:hover:shadow-[4px_4px_0_0_#000]",
+                      "transition-all",
+                      "cursor-pointer",
+                      "flex",
+                      "items-center",
+                      "justify-center",
+                      "gap-2",
+                      logoutMutation.isPending &&
+                        "opacity-60 cursor-not-allowed",
+                    )}
+                  >
+                    {logoutMutation.isPending
+                      ? "Signing out..."
+                      : "Yes, Sign Out"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )}
     </header>
   );
 }

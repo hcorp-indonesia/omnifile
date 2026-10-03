@@ -14,7 +14,9 @@
     "scan": "trivy fs --scanners vuln,secret,config .",
     "type-check": "cd apps/web && bunx tsc --noEmit",
     "migrate": "cd apps/api && go run db/migrations/migrate.go",
-    "migrate:seed": "cd apps/api && go run db/migrations/migrate.go --seed",
+    "seed": "cd apps/api && go run db/migrations/migrate.go --seed",
+    "seed:auth": "cd apps/api && go run db/migrations/migrate.go --seed=auth",
+    "migrate:seed": "bun run seed",
     "postinstall": "cd apps/web && bun install"
   },
   "devDependencies": {

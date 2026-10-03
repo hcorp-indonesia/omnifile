@@ -3,18 +3,17 @@ package auth
 import (
 	"context"
 	"crypto/rand"
-	"crypto/sha256"
 	"database/sql"
 	"encoding/hex"
 	"strings"
 	"time"
+	"unicode"
 
 	"magic-converter/src/utils"
 
 	"github.com/google/uuid"
 	"github.com/rs/zerolog/log"
 	"github.com/uptrace/bun"
-	"golang.org/x/crypto/bcrypt"
 )
 
 const (
@@ -25,10 +24,10 @@ const (
 
 type AuthService struct {
 	db     *bun.DB
-	mailer *SMTPMailer
+	mailer *utils.SMTPMailer
 }
 
-func NewAuthService(db *bun.DB, mailer *SMTPMailer) *AuthService {
+func NewAuthService(db *bun.DB, mailer *utils.SMTPMailer) *AuthService {
 	return &AuthService{db: db, mailer: mailer}
 }
 
@@ -40,13 +39,11 @@ func generateSecureToken(byteLen int) (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
-func hashResetToken(token string) string {
-	hash := sha256.Sum256([]byte(token))
-	return hex.EncodeToString(hash[:])
-}
-
 func (s *AuthService) RequestPasswordReset(ctx context.Context, req *RequestPasswordResetRequest) error {
 	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	if cleanEmail == "" || !strings.Contains(cleanEmail, "@") {
+		return utils.ErrBadRequest("A valid email address is required")
+	}
 	user := new(User)
 	if err := s.db.NewSelect().Model(user).Where("LOWER(email) = ?", cleanEmail).Scan(ctx); err != nil {
 		if err == sql.ErrNoRows {
@@ -61,7 +58,7 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, req *RequestPass
 	}
 	token := &PasswordResetToken{
 		UserID:    user.ID,
-		TokenHash: hashResetToken(rawToken),
+		Token:     rawToken,
 		ExpiresAt: time.Now().Add(PasswordResetTokenDuration),
 		CreatedAt: time.Now(),
 	}
@@ -85,17 +82,45 @@ func (s *AuthService) RequestPasswordReset(ctx context.Context, req *RequestPass
 	return nil
 }
 
+func validatePassword(password string) error {
+	if len(password) < 8 {
+		return utils.ErrBadRequest("Password must be at least 8 characters")
+	}
+
+	var hasUpper, hasSpecial bool
+	for _, r := range password {
+		if unicode.IsUpper(r) {
+			hasUpper = true
+		} else if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			hasSpecial = true
+		}
+	}
+
+	if !hasUpper {
+		return utils.ErrBadRequest("Password must contain at least one uppercase letter")
+	}
+	if !hasSpecial {
+		return utils.ErrBadRequest("Password must contain at least one special character (!@#$%^&* etc.)")
+	}
+
+	return nil
+}
+
 func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordRequest) error {
 	if req.NewPassword != req.ConfirmPassword {
 		return utils.ErrBadRequest("Passwords do not match")
 	}
 
-	tokenHash := hashResetToken(strings.TrimSpace(req.Token))
+	if err := validatePassword(req.NewPassword); err != nil {
+		return err
+	}
+
+	rawToken := strings.TrimSpace(req.Token)
 	now := time.Now()
 	resetToken := new(PasswordResetToken)
 
 	if err := s.db.NewSelect().Model(resetToken).
-		Where("prt.token_hash = ?", tokenHash).
+		Where("prt.token = ?", rawToken).
 		Where("prt.used_at IS NULL").
 		Where("prt.expires_at > ?", now).
 		Scan(ctx); err != nil {
@@ -105,13 +130,13 @@ func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordReque
 		return utils.ErrInternalServerError("Unable to verify password reset link")
 	}
 
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashedPassword, err := utils.HashPassword(req.NewPassword)
 	if err != nil {
 		return utils.ErrInternalServerError("Unable to update password")
 	}
 
 	err = s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		user := &User{ID: resetToken.UserID, Password: func() *string { value := string(hashedPassword); return &value }(), UpdatedAt: now}
+		user := &User{ID: resetToken.UserID, Password: &hashedPassword, UpdatedAt: now}
 		if _, err := tx.NewUpdate().Model(user).Column("password", "updated_at").WherePK().Exec(ctx); err != nil {
 			return err
 		}
@@ -138,7 +163,27 @@ func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordReque
 }
 
 func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip, ua string) (*AuthResult, error) {
+	name := strings.TrimSpace(req.Name)
+	if name == "" {
+		return nil, utils.ErrBadRequest("Name is required")
+	}
+
 	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	if cleanEmail == "" || !strings.Contains(cleanEmail, "@") {
+		return nil, utils.ErrBadRequest("A valid email address is required")
+	}
+
+	if req.Password == "" {
+		return nil, utils.ErrBadRequest("Password is required")
+	}
+
+	if req.Password != req.ConfirmPassword {
+		return nil, utils.ErrBadRequest("Passwords do not match")
+	}
+
+	if err := validatePassword(req.Password); err != nil {
+		return nil, err
+	}
 
 	// Check existing user
 	exists, err := s.db.NewSelect().
@@ -153,15 +198,15 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip, ua
 	}
 
 	// Hash password
-	hashed, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashed, err := utils.HashPassword(req.Password)
 	if err != nil {
 		return nil, utils.ErrInternalServerError("Failed to hash password")
 	}
-	passwordHash := string(hashed)
+	passwordHash := hashed
 
 	now := time.Now()
 	user := &User{
-		Name:      strings.TrimSpace(req.Name),
+		Name:      name,
 		Email:     cleanEmail,
 		Password:  &passwordHash,
 		Provider:  "local",
@@ -178,6 +223,9 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip, ua
 
 func (s *AuthService) Login(ctx context.Context, req *LoginRequest, ip, ua string) (*AuthResult, error) {
 	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
+	if cleanEmail == "" || strings.TrimSpace(req.Password) == "" {
+		return nil, utils.ErrBadRequest("Email and password are required")
+	}
 
 	user := new(User)
 	err := s.db.NewSelect().
@@ -192,7 +240,7 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest, ip, ua strin
 		return nil, utils.ErrUnauthorized("This account was registered with Google. Please use Google Sign In.")
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(*user.Password), []byte(req.Password)); err != nil {
+	if err := utils.CheckPassword(*user.Password, req.Password); err != nil {
 		return nil, utils.ErrUnauthorized("Invalid email or password")
 	}
 

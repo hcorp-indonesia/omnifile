@@ -1,12 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { authService } from '@/service/auth-service';
-import { useAuthStore } from '@/store/auth-store';
-import type { RegisterPayload, LoginPayload, GoogleAuthPayload } from '@/types';
-import { toast } from 'sonner';
+import { authService } from "@/service/auth-service";
+import { useAuthStore } from "@/store/auth-store";
+import type { GoogleAuthPayload, LoginPayload, RegisterPayload } from "@/types";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 export const authKeys = {
-  all: ['auth'] as const,
-  me: () => [...authKeys.all, 'me'] as const,
+  all: ["auth"] as const,
+  me: () => [...authKeys.all, "me"] as const,
 };
 
 export function useCurrentUser() {
@@ -45,11 +45,10 @@ export function useRegisterMutation() {
         setUser(res.data);
       }
       queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success('Registration successful! Welcome to OmniFile.');
+      toast.success("Registration successful! Welcome to OmniFile.");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Registration failed. Please check your data.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
     },
   });
 }
@@ -65,11 +64,10 @@ export function useLoginMutation() {
         setUser(res.data);
       }
       queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success('Signed in successfully!');
+      toast.success("Signed in successfully!");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Failed to sign in. Please verify your credentials.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
     },
   });
 }
@@ -85,11 +83,10 @@ export function useGoogleAuthMutation() {
         setUser(res.data);
       }
       queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success('Signed in with Google successfully!');
+      toast.success("Signed in with Google successfully!");
     },
     onError: (err: any) => {
-      const msg = err.response?.data?.message || 'Google sign in failed.';
-      toast.error(msg);
+      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
     },
   });
 }
@@ -103,7 +100,7 @@ export function useLogoutMutation() {
     onSuccess: () => {
       clearAuth();
       queryClient.clear();
-      toast.success('Signed out successfully.');
+      toast.success("Signed out successfully.");
     },
     onError: () => {
       clearAuth();

@@ -112,7 +112,7 @@ magic-converter/
 
 ### SMTP Password Reset Setup
 
-Password reset uses a single-use token stored as a SHA-256 hash and sent through SMTP with TLS. Configure these variables in the local `.env` file (never commit them):
+Password reset uses a single-use expiring token sent through SMTP with TLS. Configure these variables in the local `.env` file (never commit them):
 
 ```env
 FRONTEND_URL=https://your-frontend-domain.example

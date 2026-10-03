@@ -34,8 +34,8 @@ export function useCreateConverter() {
       queryClient.invalidateQueries({ queryKey: converterKeys.lists() });
       toast.success('Converter created successfully');
     },
-    onError: () => {
-      toast.error('Failed to create converter');
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Something went wrong. Please try again.');
     },
   });
 }
@@ -50,8 +50,8 @@ export function useUpdateConverter() {
       queryClient.invalidateQueries({ queryKey: converterKeys.all });
       toast.success('Converter updated successfully');
     },
-    onError: () => {
-      toast.error('Failed to update converter');
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Something went wrong. Please try again.');
     },
   });
 }
@@ -65,8 +65,8 @@ export function useDeleteConverter() {
       queryClient.invalidateQueries({ queryKey: converterKeys.lists() });
       toast.success('Converter deleted successfully');
     },
-    onError: () => {
-      toast.error('Failed to delete converter');
+    onError: (err: any) => {
+      toast.error(err.response?.data?.message || 'Something went wrong. Please try again.');
     },
   });
 }

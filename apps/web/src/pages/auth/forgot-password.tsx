@@ -1,4 +1,4 @@
-import { ArrowLeft, ArrowRight, Mail } from "lucide-react";
+import { ArrowLeft, Mail } from "lucide-react";
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { toast } from "sonner";
@@ -17,15 +17,26 @@ export default function ForgotPasswordPage() {
     try {
       await authService.requestPasswordReset({ email });
       toast.success("If the email is registered, a reset link has been sent.");
-    } catch {
-      toast.error("Unable to process the password reset request.");
+    } catch (err: any) {
+      toast.error(
+        err.response?.data?.message ||
+          "Something went wrong. Please try again.",
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className={cn("flex", "w-full", "items-center", "justify-center", "py-10")}>
+    <div
+      className={cn(
+        "flex",
+        "w-full",
+        "items-center",
+        "justify-center",
+        "py-10",
+      )}
+    >
       <div
         className={cn(
           "w-full",
@@ -158,10 +169,10 @@ export default function ForgotPasswordPage() {
               "dark:shadow-[4px_4px_0_0_#000]",
               "disabled:cursor-not-allowed",
               "disabled:opacity-60",
+              "cursor-pointer",
             )}
           >
-            {isSubmitting ? "Sending..." : "Send reset link"}
-            <ArrowRight className={cn("h-4", "w-4")} />
+            {isSubmitting ? "Sending..." : "Submit"}
           </button>
         </form>
 

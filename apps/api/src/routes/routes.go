@@ -1,23 +1,22 @@
 package routes
 
 import (
+	"magic-converter/src/middleware"
 	"magic-converter/src/modules/auth"
-	"magic-converter/src/modules/converter"
-	"magic-converter/src/modules/media"
+	pdftojpg "magic-converter/src/modules/pdf/pdf-to-jpg"
 
 	"github.com/gofiber/fiber/v3"
 )
 
 func RegisterRoutes(
 	app *fiber.App,
-	converterController *converter.ConverterController,
-	mediaController *media.MediaController,
 	authController *auth.AuthController,
+	authMiddleware *middleware.AuthMiddleware,
+	pdfToJpgController *pdftojpg.PdfToJpgController,
 ) {
 	const ApiVersion = "/api/v1"
 	api := app.Group(ApiVersion)
 
 	auth.RegisterRoutes(api, authController)
-	converter.RegisterRoutes(api, converterController)
-	media.RegisterRoutes(api, mediaController)
+	pdftojpg.RegisterRoutes(api, pdfToJpgController)
 }

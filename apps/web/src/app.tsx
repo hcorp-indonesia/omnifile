@@ -17,14 +17,19 @@ import {
 import { Toaster } from 'sonner';
 
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
-const AudioPage = lazy(() => import('@/pages/audio'));
-const ImagePage = lazy(() => import('@/pages/media-tools'));
+const AudioPage = lazy(() => import('@/pages/audio/audio'));
+const ImagePage = lazy(() => import('@/pages/image/image'));
 
-const PDFPage = lazy(() => import('@/pages/pdf'));
-const LoginPage = lazy(() => import('@/pages/login'));
-const RegisterPage = lazy(() => import('@/pages/register'));
-const ForgotPasswordPage = lazy(() => import('@/pages/forgot-password'));
-const ResetPasswordPage = lazy(() => import('@/pages/reset-password'));
+const PDFPage = lazy(() => import('@/pages/pdf/pdf'));
+const PdfToJpgPage = lazy(() => import('@/pages/pdf/pdf-to-jpg/page'));
+const PdfToJpegPage = lazy(() => import('@/pages/pdf/pdf-to-jpeg/page'));
+const PdfToPngPage = lazy(() => import('@/pages/pdf/pdf-to-png/page'));
+const PdfToWebpPage = lazy(() => import('@/pages/pdf/pdf-to-webp/page'));
+const PdfToAvifPage = lazy(() => import('@/pages/pdf/pdf-to-avif/page'));
+const LoginPage = lazy(() => import('@/pages/auth/login'));
+const RegisterPage = lazy(() => import('@/pages/auth/register'));
+const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
+const ResetPasswordPage = lazy(() => import('@/pages/auth/reset-password'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 type AuthLocationState = {
@@ -152,6 +157,11 @@ function AppRoutes() {
           <Route path="/audio" element={<AudioPage />} />
           <Route path="/image" element={<ImagePage />} />
           <Route path="/pdf" element={<PDFPage />} />
+          <Route path="/pdf/pdf-to-jpg" element={<PdfToJpgPage />} />
+          <Route path="/pdf/pdf-to-jpeg" element={<PdfToJpegPage />} />
+          <Route path="/pdf/pdf-to-png" element={<PdfToPngPage />} />
+          <Route path="/pdf/pdf-to-webp" element={<PdfToWebpPage />} />
+          <Route path="/pdf/pdf-to-avif" element={<PdfToAvifPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
