@@ -8,6 +8,9 @@ import (
 	pdftojpg "magic-converter/src/modules/pdf/pdf-to-jpg"
 	pdftoword "magic-converter/src/modules/pdf/pdf-to-word"
 	mergepdf "magic-converter/src/modules/pdf/merge-pdf"
+	splitpdf "magic-converter/src/modules/pdf/split-pdf"
+	removepdf "magic-converter/src/modules/pdf/remove-pdf"
+	compresspdf "magic-converter/src/modules/pdf/compress-pdf"
 	"magic-converter/src/routes"
 	"magic-converter/src/utils"
 
@@ -55,6 +58,12 @@ func main() {
 	c.Provide(pdftoword.NewPdfToWordController)
 	c.Provide(mergepdf.NewMergePdfService)
 	c.Provide(mergepdf.NewMergePdfController)
+	c.Provide(splitpdf.NewSplitPdfService)
+	c.Provide(splitpdf.NewSplitPdfController)
+	c.Provide(removepdf.NewRemovePdfService)
+	c.Provide(removepdf.NewRemovePdfController)
+	c.Provide(compresspdf.NewCompressPdfService)
+	c.Provide(compresspdf.NewCompressPdfController)
 
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
@@ -85,10 +94,13 @@ func main() {
 		pdfToExcelController *pdftoexcel.PdfToExcelController,
 		pdfToWordController *pdftoword.PdfToWordController,
 		mergePdfController *mergepdf.MergePdfController,
+		splitPdfController *splitpdf.SplitPdfController,
+		removePdfController *removepdf.RemovePdfController,
+		compressPdfController *compresspdf.CompressPdfController,
 		dbClient *bun.DB,
 		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController, pdfToWordController, mergePdfController)
+		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController, pdfToWordController, mergePdfController, splitPdfController, removePdfController, compressPdfController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

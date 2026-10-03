@@ -5,6 +5,7 @@ import {
   Bot,
   Crop,
   FileArchive,
+  FileMinus,
   FileSpreadsheet,
   FileText,
   Image as ImageIcon,
@@ -59,6 +60,12 @@ const pdfEditTools = [
     desc: "Split document pages",
     icon: Scissors,
     bg: "bg-pink-300",
+  },
+  {
+    title: "Remove PDF",
+    desc: "Delete unwanted pages",
+    icon: FileMinus,
+    bg: "bg-red-300",
   },
   {
     title: "Compress PDF",
@@ -401,7 +408,17 @@ export default function Header() {
                         {pdfEditTools.map((tool) => (
                           <Link
                             key={tool.title}
-                            to="/pdf"
+                            to={
+                              tool.title === "Merge PDF"
+                                ? "/pdf/merge-pdf"
+                                : tool.title === "Split PDF"
+                                  ? "/pdf/split-pdf"
+                                  : tool.title === "Remove PDF"
+                                    ? "/pdf/remove-pdf"
+                                    : tool.title === "Compress PDF"
+                                      ? "/pdf/compress-pdf"
+                                      : "/pdf"
+                            }
                             onClick={() => setIsToolsOpen(false)}
                             className={cn(
                               "flex",

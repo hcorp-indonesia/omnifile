@@ -164,7 +164,10 @@ export default function PDFPage() {
       tool.id === "pdf-to-avif" ||
       tool.id === "pdf-to-excel" ||
       tool.id === "pdf-to-word" ||
-      tool.id === "merge-pdf"
+      tool.id === "merge-pdf" ||
+      tool.id === "split-pdf" ||
+      tool.id === "remove-pdf" ||
+      tool.id === "compress-pdf"
     ) {
       navigate(`/pdf/${tool.id}`);
       return;

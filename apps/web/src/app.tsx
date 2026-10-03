@@ -29,6 +29,9 @@ const PdfToAvifPage = lazy(() => import('@/pages/pdf/pdf-to-avif/page'));
 const PdfToExcelPage = lazy(() => import('@/pages/pdf/pdf-to-excel/page'));
 const PdfToWordPage = lazy(() => import('@/pages/pdf/pdf-to-word/page'));
 const MergePdfPage = lazy(() => import('@/pages/pdf/merge-pdf/page'));
+const SplitPdfPage = lazy(() => import('@/pages/pdf/split-pdf/page'));
+const RemovePdfPage = lazy(() => import('@/pages/pdf/remove-pdf/page'));
+const CompressPdfPage = lazy(() => import('@/pages/pdf/compress-pdf/page'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const RegisterPage = lazy(() => import('@/pages/auth/register'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
@@ -168,6 +171,9 @@ function AppRoutes() {
           <Route path="/pdf/pdf-to-excel" element={<PdfToExcelPage />} />
           <Route path="/pdf/pdf-to-word" element={<PdfToWordPage />} />
           <Route path="/pdf/merge-pdf" element={<MergePdfPage />} />
+          <Route path="/pdf/split-pdf" element={<SplitPdfPage />} />
+          <Route path="/pdf/remove-pdf" element={<RemovePdfPage />} />
+          <Route path="/pdf/compress-pdf" element={<CompressPdfPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
