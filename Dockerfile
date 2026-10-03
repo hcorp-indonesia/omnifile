@@ -35,7 +35,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/healthcheck hc/ma
 FROM alpine:3.21 AS runtime
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata
+RUN apk add --no-cache ca-certificates tzdata tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-ind
 
 # Copy Go binary and health check
 COPY --from=api-builder /app/server .

@@ -4,10 +4,13 @@ import (
 	"magic-converter/config"
 	"magic-converter/src/middleware"
 	"magic-converter/src/modules/auth"
+	pdftoexcel "magic-converter/src/modules/pdf/pdf-to-excel"
 	pdftojpg "magic-converter/src/modules/pdf/pdf-to-jpg"
 	"magic-converter/src/routes"
 	"magic-converter/src/utils"
 
+	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
@@ -28,12 +31,24 @@ func main() {
 	c.Provide(utils.NewDragonflyClient)
 	c.Provide(utils.NewSMTPMailer)
 
+	// Shared PDFium WebAssembly pool
+	c.Provide(func() (pdfium.Pool, error) {
+		return webassembly.Init(webassembly.Config{
+			MinIdle:  1,
+			MaxIdle:  2,
+			MaxTotal: 4,
+		})
+	})
+
 	c.Provide(auth.NewAuthService)
 	c.Provide(auth.NewAuthController)
 	c.Provide(middleware.NewAuthMiddleware)
 
 	c.Provide(pdftojpg.NewPdfToJpgService)
 	c.Provide(pdftojpg.NewPdfToJpgController)
+
+	c.Provide(pdftoexcel.NewPdfToExcelService)
+	c.Provide(pdftoexcel.NewPdfToExcelController)
 
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
@@ -61,10 +76,11 @@ func main() {
 		authController *auth.AuthController,
 		authMiddleware *middleware.AuthMiddleware,
 		pdfToJpgController *pdftojpg.PdfToJpgController,
+		pdfToExcelController *pdftoexcel.PdfToExcelController,
 		dbClient *bun.DB,
 		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController)
+		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

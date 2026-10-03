@@ -17,7 +17,6 @@ import (
 	"github.com/HugoSmits86/nativewebp"
 	"github.com/klippa-app/go-pdfium"
 	"github.com/klippa-app/go-pdfium/requests"
-	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/rs/zerolog/log"
 )
 
@@ -26,21 +25,10 @@ type PdfToJpgService struct {
 	mu   sync.Mutex
 }
 
-func NewPdfToJpgService() (*PdfToJpgService, error) {
-	// Initialize Go-PDFium WebAssembly pool with optimal concurrency
-	pool, err := webassembly.Init(webassembly.Config{
-		MinIdle:  1,
-		MaxIdle:  2,
-		MaxTotal: 4,
-	})
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to initialize PDFium WebAssembly pool")
-		return nil, err
-	}
-
+func NewPdfToJpgService(pool pdfium.Pool) *PdfToJpgService {
 	return &PdfToJpgService{
 		pool: pool,
-	}, nil
+	}
 }
 
 type ConvertOptions struct {

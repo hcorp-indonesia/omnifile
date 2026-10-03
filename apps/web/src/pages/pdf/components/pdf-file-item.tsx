@@ -1,3 +1,4 @@
+import type { ExcelConversionResult } from "@/lib/pdf-excel-api";
 import type { ConvertedPage, ConvertedPdfResult } from "@/lib/pdf-renderer";
 import { cn } from "@/lib/utils";
 import {
@@ -5,7 +6,9 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
+  Eye,
   FileArchive,
+  FileSpreadsheet,
   FileText,
   Loader2,
   Pencil,
@@ -18,23 +21,26 @@ export interface FileItemState {
   name: string;
   size: number;
   status: "pending" | "converting" | "done" | "error";
-  engine?: "client" | "server";
+  engine?: string;
   result?: ConvertedPdfResult;
+  excelResult?: ExcelConversionResult;
+  errorMessage?: string;
   isExpanded?: boolean;
 }
 
 export interface PdfFileItemProps {
-  item: FileItemState;
+  item: any;
   index: number;
   formatName: string;
   largeFileThresholdBytes?: number;
-  onToggleExpand: (id: string) => void;
-  onEditPage: (fileId: string, page: ConvertedPage) => void;
+  onToggleExpand?: (id: string) => void;
+  onEditPage?: (fileId: string, page: ConvertedPage) => void;
   onDeleteFile: (fileId: string) => void;
   onDeletePage?: (page: ConvertedPage) => void;
-  onDownloadFile: (item: FileItemState) => void;
+  onDownloadFile: (item: any) => void;
   onDownloadSinglePage?: (page: ConvertedPage) => void;
   onPreviewPage?: (page: ConvertedPage) => void;
+  onPreviewExcel?: (result: ExcelConversionResult) => void;
 }
 
 export function PdfFileItem({
@@ -49,6 +55,7 @@ export function PdfFileItem({
   onDownloadFile,
   onDownloadSinglePage,
   onPreviewPage,
+  onPreviewExcel,
 }: PdfFileItemProps) {
   const isDone = item.status === "done";
   const isConverting = item.status === "converting";
@@ -97,7 +104,9 @@ export function PdfFileItem({
               "bg-gray-100 dark:bg-gray-800",
             )}
           >
-            {item.result && item.result.pages.length > 0 ? (
+            {item.excelResult ? (
+              <FileSpreadsheet className={cn("h-6", "w-6", "text-emerald-600", "dark:text-emerald-400")} />
+            ) : item.result && item.result.pages.length > 0 ? (
               <img
                 src={item.result.pages[0].previewUrl}
                 alt={item.name}
@@ -149,6 +158,7 @@ export function PdfFileItem({
               className={cn(
                 "mt-0.5",
                 "flex",
+                "flex-wrap",
                 "items-center",
                 "gap-2",
                 "text-xs",
@@ -158,7 +168,27 @@ export function PdfFileItem({
               )}
             >
               <span>{(item.size / 1024 / 1024).toFixed(2)} MB</span>
-              {item.size >= largeFileThresholdBytes ? (
+              {item.excelResult ? (
+                <>
+               
+                  <span
+                    className={cn(
+                      "rounded-md",
+                      "bg-yellow-300",
+                      "px-1.5",
+                      "py-0.5",
+                      "text-[11px]",
+                      "font-black",
+                      "text-gray-900",
+                    )}
+                  >
+                    {item.excelResult.total_sheets}{" "}
+                    {item.excelResult.total_sheets > 1 ? "sheets" : "sheet"} (
+                    {item.excelResult.total_rows} rows)
+                  </span>
+                  <span>• {(item.excelResult.file_size / 1024).toFixed(1)} KB</span>
+                </>
+              ) : item.size >= largeFileThresholdBytes ? (
                 <span
                   className={cn(
                     "rounded-md",
@@ -178,7 +208,7 @@ export function PdfFileItem({
                   🚀 Server Engine
                 </span>
               ) : null}
-              {isDone ? (
+              {isDone && !item.excelResult ? (
                 <span
                   className={cn(
                     "rounded-md",
@@ -205,9 +235,13 @@ export function PdfFileItem({
                   <Loader2 className={cn("h-3.5", "w-3.5", "animate-spin")} />{" "}
                   Converting...
                 </span>
-              ) : (
+              ) : item.status === "error" ? (
+                <span className="text-red-500 font-bold">
+                  {item.errorMessage || "Error"}
+                </span>
+              ) : !item.excelResult ? (
                 <span className="text-gray-400">Ready</span>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
@@ -217,7 +251,7 @@ export function PdfFileItem({
           {isDone && pagesCount > 1 && (
             <button
               type="button"
-              onClick={() => onToggleExpand(item.id)}
+              onClick={() => onToggleExpand?.(item.id)}
               className={cn(
                 "inline-flex",
                 "items-center",
@@ -277,8 +311,41 @@ export function PdfFileItem({
           >
             <Trash2 className={cn("h-4", "w-4")} />
           </button>
+          {/* Excel Preview button (Eye icon) */}
+          {isDone && item.excelResult && onPreviewExcel && (
+            <button
+              type="button"
+              onClick={() => onPreviewExcel(item.excelResult!)}
+              className={cn(
+                "inline-flex",
+                "h-8",
+                "w-8",
+                "items-center",
+                "justify-center",
+                "rounded-xl",
+                "border-2",
+                "border-gray-900",
+                "dark:border-gray-700",
+                "bg-white",
+                "dark:bg-[#1a1c22]",
+                "text-gray-900",
+                "dark:text-white",
+                "shadow-[2px_2px_0_0_#111827]",
+                "dark:shadow-[2px_2px_0_0_#000]",
+                "hover:bg-gray-100",
+                "dark:hover:bg-[#252a34]",
+                "hover:-translate-y-0.5",
+                "transition-all",
+                "cursor-pointer",
+              )}
+              title="Preview Spreadsheet"
+            >
+              <Eye className={cn("h-4", "w-4")} />
+            </button>
+          )}
+
           {/* Single page: Edit button with simple pencil icon */}
-          {isDone && pagesCount === 1 && (
+          {isDone && !item.excelResult && pagesCount === 1 && onEditPage && (
             <button
               type="button"
               onClick={() =>
@@ -326,14 +393,14 @@ export function PdfFileItem({
                 "border-2",
                 "border-gray-900",
                 "dark:border-gray-700",
-                "bg-yellow-400",
+                formatName.toLowerCase() === "xlsx"
+                  ? "bg-emerald-400 hover:bg-emerald-500 text-gray-900"
+                  : "bg-yellow-400 hover:bg-yellow-500 text-gray-900",
                 "px-4",
                 "py-2",
                 "text-xs",
                 "font-black",
-                "text-gray-900",
                 "shadow-[2px_2px_0_0_#111827]",
-                "hover:bg-yellow-500",
                 "hover:-translate-y-0.5",
                 "transition-all",
                 "cursor-pointer",
@@ -377,7 +444,7 @@ export function PdfFileItem({
             "gap-2",
           )}
         >
-          {item.result.pages.map((p) => (
+          {item.result.pages.map((p: ConvertedPage) => (
             <div
               key={p.fileName}
               className={cn(
@@ -424,7 +491,7 @@ export function PdfFileItem({
               {/* Edit button with pencil icon */}
               <button
                 type="button"
-                onClick={() => onEditPage(item.id, p)}
+                onClick={() => onEditPage?.(item.id, p)}
                 className={cn(
                   "rounded-md",
                   "border",
@@ -557,7 +624,15 @@ export function PdfBatchActionBar({
               "dark:text-gray-300",
             )}
           >
-            {totalFiles} files • {totalPages} {formatName.toUpperCase()} images
+            {totalFiles} {totalFiles === 1 ? "file" : "files"} • {totalPages}{" "}
+            {formatName.toUpperCase()}{" "}
+            {formatName.toLowerCase() === "xlsx"
+              ? totalPages === 1
+                ? "spreadsheet"
+                : "spreadsheets"
+              : totalPages === 1
+                ? "image"
+                : "images"}{" "}
             ready
           </p>
         </div>

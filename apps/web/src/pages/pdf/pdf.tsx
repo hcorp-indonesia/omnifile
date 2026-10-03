@@ -161,7 +161,8 @@ export default function PDFPage() {
       tool.id === "pdf-to-jpeg" ||
       tool.id === "pdf-to-png" ||
       tool.id === "pdf-to-webp" ||
-      tool.id === "pdf-to-avif"
+      tool.id === "pdf-to-avif" ||
+      tool.id === "pdf-to-excel"
     ) {
       navigate(`/pdf/${tool.id}`);
       return;

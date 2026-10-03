@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme-store';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
 import {
   BrowserRouter,
   Navigate,
@@ -26,6 +26,7 @@ const PdfToJpegPage = lazy(() => import('@/pages/pdf/pdf-to-jpeg/page'));
 const PdfToPngPage = lazy(() => import('@/pages/pdf/pdf-to-png/page'));
 const PdfToWebpPage = lazy(() => import('@/pages/pdf/pdf-to-webp/page'));
 const PdfToAvifPage = lazy(() => import('@/pages/pdf/pdf-to-avif/page'));
+const PdfToExcelPage = lazy(() => import('@/pages/pdf/pdf-to-excel/page'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const RegisterPage = lazy(() => import('@/pages/auth/register'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
@@ -44,14 +45,14 @@ function AuthOverlay({
   children: React.ReactNode;
 }) {
   const navigate = useNavigate();
-  const closeOverlay = () => {
+  const closeOverlay = useCallback(() => {
     if (backgroundLocation) {
       navigate(backgroundLocation, { replace: true });
       return;
     }
 
     navigate(-1);
-  };
+  }, [backgroundLocation, navigate]);
 
   useEffect(() => {
     const previousBodyOverflow = document.body.style.overflow;
@@ -68,7 +69,7 @@ function AuthOverlay({
       document.body.style.overflow = previousBodyOverflow;
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [backgroundLocation, navigate]);
+  }, [closeOverlay]);
 
   return (
     <div
@@ -162,6 +163,7 @@ function AppRoutes() {
           <Route path="/pdf/pdf-to-png" element={<PdfToPngPage />} />
           <Route path="/pdf/pdf-to-webp" element={<PdfToWebpPage />} />
           <Route path="/pdf/pdf-to-avif" element={<PdfToAvifPage />} />
+          <Route path="/pdf/pdf-to-excel" element={<PdfToExcelPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
