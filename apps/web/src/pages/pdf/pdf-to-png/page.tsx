@@ -348,7 +348,7 @@ export default function PdfToPngPage() {
   );
 
   return (
-    <div className={cn("mx-auto", "max-w-4xl", "space-y-6", "py-4")}>
+    <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "py-4")}>
       {/* Top Header / Navigation */}
       <div className={cn("flex", "items-center", "justify-between")}>
         <Link

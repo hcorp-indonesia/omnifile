@@ -165,7 +165,7 @@ export default function PdfToWordPage() {
   );
 
   return (
-    <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "p-4", "sm:p-8")}>
+    <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "py-4")}>
       {/* Top Navigation & Title */}
       <div className={cn('flex', 'flex-col', 'sm:flex-row', 'sm:items-center', 'justify-between', 'gap-4')}>
         <Link

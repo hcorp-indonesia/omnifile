@@ -17,6 +17,7 @@ import {
   Layers,
   Loader2,
   Plus,
+  RotateCcw,
   Trash2,
   X,
 } from "lucide-react";
@@ -159,19 +160,8 @@ export default function MergePdfPage() {
   const totalBytes = items.reduce((acc, curr) => acc + curr.size, 0);
 
   return (
-    <div
-      className={cn(
-        "min-h-screen",
-        "bg-[#fdfbf7]",
-        "dark:bg-[#0e1015]",
-        "text-gray-900",
-        "dark:text-gray-100",
-        "p-4",
-        "sm:p-8",
-      )}
-    >
-      <div className={cn("mx-auto", "max-w-5xl", "space-y-8")}>
-        {/* Header Navigation */}
+    <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "py-4")}>
+      {/* Header Navigation & Reset */}
         <div className={cn("flex", "items-center", "justify-between")}>
           <Link
             to="/pdf"
@@ -199,22 +189,58 @@ export default function MergePdfPage() {
             <ArrowLeft className={cn("h-4", "w-4")} />
             Back
           </Link>
+
+          {items.length > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={isProcessing}
+              className={cn(
+                "inline-flex",
+                "items-center",
+                "gap-1.5",
+                "rounded-xl",
+                "border-2",
+                "border-gray-900",
+                "dark:border-gray-700",
+                "bg-gray-100",
+                "dark:bg-[#1a1c24]",
+                "px-3.5",
+                "py-2",
+                "text-xs",
+                "font-bold",
+                "text-gray-700",
+                "dark:text-gray-300",
+                "shadow-[2px_2px_0_0_#111827]",
+                "dark:shadow-[2px_2px_0_0_#000]",
+                "hover:bg-gray-200",
+                "dark:hover:bg-gray-700",
+                "transition-all",
+                "cursor-pointer",
+              )}
+            >
+              <RotateCcw className={cn("h-3.5", "w-3.5")} />
+              Reset All
+            </button>
+          )}
         </div>
 
-        {/* Dropzone (When Empty or ready to add) */}
-        {items.length === 0 ? (
-          <FileDropzone
-            title="Upload PDF Files to Merge"
-            description="Select 2 or more PDF documents. You can reorder them before merging."
-            dropzoneTitle="Drag & Drop PDF files here"
-            dropzoneSubtitle="Supports multiple PDF files up to 100MB"
-            accept=".pdf,application/pdf"
-            multiple={true}
-            iconBg="bg-purple-300"
-            icon={<Layers className={cn("h-7", "w-7", "text-gray-900")} />}
-            onFilesSelected={handleFilesSelected}
-          />
-        ) : (
+        {/* Dropzone (Always visible with full size & layout) */}
+        <FileDropzone
+          title="Upload PDF Files to Merge"
+          description="Select 2 or more PDF documents. You can reorder them before merging."
+          dropzoneTitle="Drag & Drop PDF files here"
+          dropzoneSubtitle="Supports multiple PDF files up to 100MB"
+          accept=".pdf,application/pdf"
+          multiple={true}
+          iconBg="bg-purple-300"
+          icon={<Layers className={cn("h-7", "w-7", "text-gray-900")} />}
+          onFilesSelected={handleFilesSelected}
+          disabled={isProcessing}
+        />
+
+        {/* Reorderable Files List & Merge Details */}
+        {items.length > 0 && (
           <div className={cn("space-y-6")}>
             {/* Reorderable Files List Card */}
             <div
@@ -254,7 +280,7 @@ export default function MergePdfPage() {
                       "dark:text-white",
                     )}
                   >
-                    Merge Order
+                    Merge Order ({items.length} files • {formatFileSize(totalBytes)})
                   </h2>
                   <p
                     className={cn(
@@ -501,8 +527,52 @@ export default function MergePdfPage() {
                 ))}
               </div>
 
-              {/* Action Button & Progress */}
-              <div className={cn("mt-6")}>
+              {/* Output File Name Config & Action Button */}
+              <div className={cn("mt-6", "space-y-4")}>
+                <div className={cn("space-y-1.5")}>
+                  <label
+                    htmlFor="output-file-name"
+                    className={cn(
+                      "block",
+                      "text-xs",
+                      "font-black",
+                      "text-gray-700",
+                      "dark:text-gray-300",
+                    )}
+                  >
+                    Output File Name
+                  </label>
+                  <input
+                    id="output-file-name"
+                    type="text"
+                    value={outputFileName}
+                    onChange={(e) => setOutputFileName(e.target.value)}
+                    placeholder="merged-document.pdf"
+                    disabled={isProcessing}
+                    className={cn(
+                      "w-full",
+                      "rounded-xl",
+                      "border-2",
+                      "border-gray-900",
+                      "dark:border-gray-700",
+                      "bg-[#fdfbf7]",
+                      "dark:bg-[#12141a]",
+                      "px-3.5",
+                      "py-2",
+                      "text-xs",
+                      "sm:text-sm",
+                      "font-bold",
+                      "text-gray-900",
+                      "dark:text-white",
+                      "shadow-[2px_2px_0_0_#111827]",
+                      "dark:shadow-[2px_2px_0_0_#000]",
+                      "focus:outline-none",
+                      "focus:ring-2",
+                      "focus:ring-purple-400",
+                    )}
+                  />
+                </div>
+
                 {isProcessing ? (
                   <div className={cn("space-y-3")}>
                     <div
@@ -961,7 +1031,6 @@ export default function MergePdfPage() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

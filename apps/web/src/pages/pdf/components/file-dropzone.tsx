@@ -123,8 +123,8 @@ export const FileDropzone = React.forwardRef<HTMLInputElement, FileDropzoneProps
           onDrop={handleDrop}
           onClick={handleClick}
           className={cn(
-            "group relative flex flex-col items-center justify-center text-center",
-            "rounded-3xl border-3 border-dashed p-10 sm:p-12 transition-all",
+            "group relative flex min-h-[220px] sm:min-h-[240px] w-full flex-col items-center justify-center text-center",
+            "rounded-3xl border-3 border-dashed p-8 sm:p-12 transition-all",
             "cursor-pointer select-none",
             disabled && "opacity-50 cursor-not-allowed pointer-events-none",
             isDragging

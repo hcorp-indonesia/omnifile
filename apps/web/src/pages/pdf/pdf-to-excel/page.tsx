@@ -166,8 +166,7 @@ export default function PdfToExcelPage() {
         "mx-auto",
         "max-w-5xl",
         "space-y-6",
-        "p-4",
-        "sm:p-8",
+        "py-4",
         "pb-36",
       )}
     >
