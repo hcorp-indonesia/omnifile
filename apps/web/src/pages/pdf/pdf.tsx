@@ -1,21 +1,21 @@
-import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import {
-  ArrowRight,
-  CheckCircle2,
-  Download,
-  FileArchive,
-  FileMinus,
-  FileSpreadsheet,
-  FileText,
-  Image as ImageIcon,
-  Layers,
-  RefreshCw,
-  ScanText,
-  Scissors,
-  Upload,
-  X,
+    ArrowRight,
+    CheckCircle2,
+    Download,
+    FileArchive,
+    FileMinus,
+    FileSpreadsheet,
+    FileText,
+    Image as ImageIcon,
+    Layers,
+    RefreshCw,
+    ScanText,
+    Scissors,
+    Upload,
+    X,
 } from "lucide-react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -162,7 +162,9 @@ export default function PDFPage() {
       tool.id === "pdf-to-png" ||
       tool.id === "pdf-to-webp" ||
       tool.id === "pdf-to-avif" ||
-      tool.id === "pdf-to-excel"
+      tool.id === "pdf-to-excel" ||
+      tool.id === "pdf-to-word" ||
+      tool.id === "merge-pdf"
     ) {
       navigate(`/pdf/${tool.id}`);
       return;

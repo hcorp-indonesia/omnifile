@@ -1,5 +1,6 @@
 import type { ExcelConversionResult } from "@/lib/pdf-excel-api";
 import type { ConvertedPage, ConvertedPdfResult } from "@/lib/pdf-renderer";
+import type { WordFileResult } from "@/lib/pdf-word-api";
 import { cn } from "@/lib/utils";
 import {
   CheckCircle2,
@@ -24,6 +25,7 @@ export interface FileItemState {
   engine?: string;
   result?: ConvertedPdfResult;
   excelResult?: ExcelConversionResult;
+  wordResult?: WordFileResult;
   errorMessage?: string;
   isExpanded?: boolean;
 }
@@ -41,6 +43,7 @@ export interface PdfFileItemProps {
   onDownloadSinglePage?: (page: ConvertedPage) => void;
   onPreviewPage?: (page: ConvertedPage) => void;
   onPreviewExcel?: (result: ExcelConversionResult) => void;
+  onPreviewWord?: (result: WordFileResult) => void;
 }
 
 export function PdfFileItem({
@@ -56,6 +59,7 @@ export function PdfFileItem({
   onDownloadSinglePage,
   onPreviewPage,
   onPreviewExcel,
+  onPreviewWord,
 }: PdfFileItemProps) {
   const isDone = item.status === "done";
   const isConverting = item.status === "converting";
@@ -104,8 +108,24 @@ export function PdfFileItem({
               "bg-gray-100 dark:bg-gray-800",
             )}
           >
-            {item.excelResult ? (
-              <FileSpreadsheet className={cn("h-6", "w-6", "text-emerald-600", "dark:text-emerald-400")} />
+            {item.wordResult ? (
+              <FileText
+                className={cn(
+                  "h-6",
+                  "w-6",
+                  "text-blue-600",
+                  "dark:text-blue-400",
+                )}
+              />
+            ) : item.excelResult ? (
+              <FileSpreadsheet
+                className={cn(
+                  "h-6",
+                  "w-6",
+                  "text-emerald-600",
+                  "dark:text-emerald-400",
+                )}
+              />
             ) : item.result && item.result.pages.length > 0 ? (
               <img
                 src={item.result.pages[0].previewUrl}
@@ -168,9 +188,29 @@ export function PdfFileItem({
               )}
             >
               <span>{(item.size / 1024 / 1024).toFixed(2)} MB</span>
-              {item.excelResult ? (
+              {item.wordResult ? (
                 <>
-               
+                  <span
+                    className={cn(
+                      "rounded-md",
+                      "bg-blue-300",
+                      "px-1.5",
+                      "py-0.5",
+                      "text-[11px]",
+                      "font-black",
+                      "text-gray-900",
+                    )}
+                  >
+                    {item.wordResult.total_pages}{" "}
+                    {item.wordResult.total_pages > 1 ? "pages" : "page"} (
+                    {item.wordResult.word_count} words)
+                  </span>
+                  <span>
+                    • {(item.wordResult.file_size / 1024).toFixed(1)} KB
+                  </span>
+                </>
+              ) : item.excelResult ? (
+                <>
                   <span
                     className={cn(
                       "rounded-md",
@@ -186,7 +226,9 @@ export function PdfFileItem({
                     {item.excelResult.total_sheets > 1 ? "sheets" : "sheet"} (
                     {item.excelResult.total_rows} rows)
                   </span>
-                  <span>• {(item.excelResult.file_size / 1024).toFixed(1)} KB</span>
+                  <span>
+                    • {(item.excelResult.file_size / 1024).toFixed(1)} KB
+                  </span>
                 </>
               ) : item.size >= largeFileThresholdBytes ? (
                 <span
@@ -208,7 +250,7 @@ export function PdfFileItem({
                   🚀 Server Engine
                 </span>
               ) : null}
-              {isDone && !item.excelResult ? (
+              {isDone && !item.excelResult && !item.wordResult ? (
                 <span
                   className={cn(
                     "rounded-md",
@@ -236,10 +278,10 @@ export function PdfFileItem({
                   Converting...
                 </span>
               ) : item.status === "error" ? (
-                <span className="text-red-500 font-bold">
+                <span className={cn("text-red-500", "font-bold")}>
                   {item.errorMessage || "Error"}
                 </span>
-              ) : !item.excelResult ? (
+              ) : !item.excelResult && !item.wordResult ? (
                 <span className="text-gray-400">Ready</span>
               ) : null}
             </div>
@@ -344,14 +386,11 @@ export function PdfFileItem({
             </button>
           )}
 
-          {/* Single page: Edit button with simple pencil icon */}
-          {isDone && !item.excelResult && pagesCount === 1 && onEditPage && (
+          {/* Word Preview button (Eye icon) */}
+          {isDone && item.wordResult && onPreviewWord && (
             <button
               type="button"
-              onClick={() =>
-                item.result?.pages[0] &&
-                onEditPage(item.id, item.result.pages[0])
-              }
+              onClick={() => onPreviewWord(item.wordResult!)}
               className={cn(
                 "inline-flex",
                 "h-8",
@@ -368,17 +407,57 @@ export function PdfFileItem({
                 "dark:text-white",
                 "shadow-[2px_2px_0_0_#111827]",
                 "dark:shadow-[2px_2px_0_0_#000]",
-                "hover:bg-yellow-100",
-                "dark:hover:bg-yellow-950/30",
+                "hover:bg-blue-100",
+                "dark:hover:bg-blue-950/40",
                 "hover:-translate-y-0.5",
                 "transition-all",
                 "cursor-pointer",
               )}
-              title="Edit Halaman"
+              title="Preview Word Document"
             >
-              <Pencil className={cn("h-4", "w-4")} />
+              <Eye className={cn("h-4", "w-4")} />
             </button>
           )}
+
+          {/* Single page: Edit button with simple pencil icon */}
+          {isDone &&
+            !item.excelResult &&
+            !item.wordResult &&
+            pagesCount === 1 &&
+            onEditPage && (
+              <button
+                type="button"
+                onClick={() =>
+                  item.result?.pages[0] &&
+                  onEditPage(item.id, item.result.pages[0])
+                }
+                className={cn(
+                  "inline-flex",
+                  "h-8",
+                  "w-8",
+                  "items-center",
+                  "justify-center",
+                  "rounded-xl",
+                  "border-2",
+                  "border-gray-900",
+                  "dark:border-gray-700",
+                  "bg-white",
+                  "dark:bg-[#1a1c22]",
+                  "text-gray-900",
+                  "dark:text-white",
+                  "shadow-[2px_2px_0_0_#111827]",
+                  "dark:shadow-[2px_2px_0_0_#000]",
+                  "hover:bg-yellow-100",
+                  "dark:hover:bg-yellow-950/30",
+                  "hover:-translate-y-0.5",
+                  "transition-all",
+                  "cursor-pointer",
+                )}
+                title="Edit Halaman"
+              >
+                <Pencil className={cn("h-4", "w-4")} />
+              </button>
+            )}
 
           {/* Download button */}
           {isDone ? (
@@ -395,7 +474,9 @@ export function PdfFileItem({
                 "dark:border-gray-700",
                 formatName.toLowerCase() === "xlsx"
                   ? "bg-emerald-400 hover:bg-emerald-500 text-gray-900"
-                  : "bg-yellow-400 hover:bg-yellow-500 text-gray-900",
+                  : formatName.toLowerCase() === "docx"
+                    ? "bg-blue-400 hover:bg-blue-500 text-gray-900"
+                    : "bg-yellow-400 hover:bg-yellow-500 text-gray-900",
                 "px-4",
                 "py-2",
                 "text-xs",
@@ -701,7 +782,7 @@ export function PdfBatchActionBar({
             )}
           >
             <FileArchive className={cn("h-4", "w-4")} />
-            Download All as ZIP (.zip)
+            Download All
           </button>
         </div>
       </div>

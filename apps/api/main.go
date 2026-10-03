@@ -6,17 +6,19 @@ import (
 	"magic-converter/src/modules/auth"
 	pdftoexcel "magic-converter/src/modules/pdf/pdf-to-excel"
 	pdftojpg "magic-converter/src/modules/pdf/pdf-to-jpg"
+	pdftoword "magic-converter/src/modules/pdf/pdf-to-word"
+	mergepdf "magic-converter/src/modules/pdf/merge-pdf"
 	"magic-converter/src/routes"
 	"magic-converter/src/utils"
 
-	"github.com/klippa-app/go-pdfium"
-	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/compress"
 	"github.com/gofiber/fiber/v3/middleware/healthcheck"
 	"github.com/gofiber/fiber/v3/middleware/helmet"
 	"github.com/gofiber/fiber/v3/middleware/logger"
 	"github.com/gofiber/fiber/v3/middleware/recover"
+	"github.com/klippa-app/go-pdfium"
+	"github.com/klippa-app/go-pdfium/webassembly"
 	"github.com/rs/zerolog/log"
 	"github.com/uptrace/bun"
 	"go.uber.org/dig"
@@ -49,6 +51,10 @@ func main() {
 
 	c.Provide(pdftoexcel.NewPdfToExcelService)
 	c.Provide(pdftoexcel.NewPdfToExcelController)
+	c.Provide(pdftoword.NewPdfToWordService)
+	c.Provide(pdftoword.NewPdfToWordController)
+	c.Provide(mergepdf.NewMergePdfService)
+	c.Provide(mergepdf.NewMergePdfController)
 
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
@@ -77,10 +83,12 @@ func main() {
 		authMiddleware *middleware.AuthMiddleware,
 		pdfToJpgController *pdftojpg.PdfToJpgController,
 		pdfToExcelController *pdftoexcel.PdfToExcelController,
+		pdfToWordController *pdftoword.PdfToWordController,
+		mergePdfController *mergepdf.MergePdfController,
 		dbClient *bun.DB,
 		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController)
+		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController, pdfToWordController, mergePdfController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

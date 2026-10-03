@@ -4,15 +4,15 @@ import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme-store';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { X } from 'lucide-react';
-import { Suspense, lazy, useEffect, useState, useCallback } from 'react';
+import { Suspense, lazy, useCallback, useEffect, useState } from 'react';
 import {
-  BrowserRouter,
-  Navigate,
-  Route,
-  Routes,
-  useLocation,
-  useNavigate,
-  type Location,
+    BrowserRouter,
+    Navigate,
+    Route,
+    Routes,
+    useLocation,
+    useNavigate,
+    type Location,
 } from 'react-router-dom';
 import { Toaster } from 'sonner';
 
@@ -27,6 +27,8 @@ const PdfToPngPage = lazy(() => import('@/pages/pdf/pdf-to-png/page'));
 const PdfToWebpPage = lazy(() => import('@/pages/pdf/pdf-to-webp/page'));
 const PdfToAvifPage = lazy(() => import('@/pages/pdf/pdf-to-avif/page'));
 const PdfToExcelPage = lazy(() => import('@/pages/pdf/pdf-to-excel/page'));
+const PdfToWordPage = lazy(() => import('@/pages/pdf/pdf-to-word/page'));
+const MergePdfPage = lazy(() => import('@/pages/pdf/merge-pdf/page'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const RegisterPage = lazy(() => import('@/pages/auth/register'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
@@ -164,6 +166,8 @@ function AppRoutes() {
           <Route path="/pdf/pdf-to-webp" element={<PdfToWebpPage />} />
           <Route path="/pdf/pdf-to-avif" element={<PdfToAvifPage />} />
           <Route path="/pdf/pdf-to-excel" element={<PdfToExcelPage />} />
+          <Route path="/pdf/pdf-to-word" element={<PdfToWordPage />} />
+          <Route path="/pdf/merge-pdf" element={<MergePdfPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />
