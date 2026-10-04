@@ -3,6 +3,7 @@ import { useAuthStore } from "@/store/auth-store";
 import { ArrowRight, FileText, Image, Lock, Music2 } from "lucide-react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import ToolsBurst from "./dashboard/tools-burst";
 
 const features = [
   {
@@ -156,10 +157,12 @@ export default function DashboardPage() {
                 "selection:text-gray-900",
                 "selection:bg-yellow-200",
                 "dark:selection:text-gray-900",
+                "mr-3",
               )}
             >
-              Seamless smart tools
+              Seamless smart
             </span>
+            <ToolsBurst />
           </h1>
           <p
             className={cn(

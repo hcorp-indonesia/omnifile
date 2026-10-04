@@ -33,18 +33,21 @@ const pdfConvertTools = [
     desc: "Convert PDF to DOCX",
     icon: FileText,
     bg: "bg-blue-300",
+    href: "/pdf/pdf-to-word",
   },
   {
     title: "PDF to Excel",
     desc: "Extract tables to XLS",
     icon: FileSpreadsheet,
     bg: "bg-emerald-300",
+    href: "/pdf/pdf-to-excel",
   },
   {
     title: "PDF to JPG",
     desc: "Save pages as JPG",
     icon: ImageIcon,
     bg: "bg-amber-300",
+    href: "/pdf/pdf-to-jpg",
   },
 ];
 
@@ -54,30 +57,35 @@ const pdfEditTools = [
     desc: "Merge multiple PDFs",
     icon: Layers,
     bg: "bg-purple-300",
+    href: "/pdf/merge-pdf",
   },
   {
     title: "Split PDF",
     desc: "Split document pages",
     icon: Scissors,
     bg: "bg-pink-300",
+    href: "/pdf/split-pdf",
   },
   {
     title: "Remove PDF",
     desc: "Delete unwanted pages",
     icon: FileMinus,
     bg: "bg-red-300",
+    href: "/pdf/remove-pdf",
   },
   {
     title: "Compress PDF",
     desc: "Compress file size",
     icon: FileArchive,
     bg: "bg-red-300",
+    href: "/pdf/compress-pdf",
   },
   {
     title: "OCR PDF",
     desc: "Extract text from scans",
     icon: ScanText,
     bg: "bg-teal-300",
+    href: "/pdf/ocr-pdf",
   },
 ];
 
@@ -99,6 +107,7 @@ const imageTools = [
     icon: ImageIcon,
     bg: "bg-emerald-300",
     tab: "convert",
+    to: "/image/image-converter",
   },
   {
     title: "Upscale Image",
@@ -106,6 +115,7 @@ const imageTools = [
     icon: Sparkles,
     bg: "bg-amber-300",
     tab: "upscale",
+    to: "/image/upscale",
   },
   {
     title: "Compress Image",
@@ -127,6 +137,7 @@ const imageTools = [
     icon: Scissors,
     bg: "bg-purple-300",
     tab: "remove-bg",
+    to: "/image/remove-bg",
   },
 ];
 
@@ -315,7 +326,7 @@ export default function Header() {
                         {pdfTools.map((tool) => (
                           <Link
                             key={tool.title}
-                            to="/pdf"
+                            to={tool.href}
                             onClick={() => setIsToolsOpen(false)}
                             className={cn(
                               "flex",
@@ -511,7 +522,7 @@ export default function Header() {
                         {imageTools.map((tool) => (
                           <Link
                             key={tool.title}
-                            to="/image"
+                            to={tool.to ?? "/image"}
                             state={{ mediaTab: tool.tab }}
                             onClick={() => setIsToolsOpen(false)}
                             className={cn(

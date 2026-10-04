@@ -167,7 +167,8 @@ export default function PDFPage() {
       tool.id === "merge-pdf" ||
       tool.id === "split-pdf" ||
       tool.id === "remove-pdf" ||
-      tool.id === "compress-pdf"
+      tool.id === "compress-pdf" ||
+      tool.id === "ocr-pdf"
     ) {
       navigate(`/pdf/${tool.id}`);
       return;

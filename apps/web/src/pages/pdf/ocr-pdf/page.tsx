@@ -1,112 +1,73 @@
 import {
   base64ToPdfBlob,
-  compressPdfViaBackend,
   downloadPdfBlob,
-  type CompressPdfOptions,
-  type CompressPdfResult,
-} from "@/lib/pdf-compress-api";
+  downloadTxtFile,
+  ocrPdfViaBackend,
+  type OcrPdfResult,
+} from "@/lib/pdf-ocr-api";
 import { cn } from "@/lib/utils";
 import { FileDropzone } from "@/pages/pdf/components/file-dropzone";
 import {
   ArrowLeft,
-  ArrowRight,
+  Check,
+  Copy,
   Download,
   Eye,
-  FileArchive,
   FileText,
-  Gauge,
-  Loader2,
+  Languages,
   RotateCcw,
-  Sliders,
-  Sparkles,
+  ScanText,
   Trash2,
   X,
-  Zap,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-export type CompressionPreset = "recommended" | "extreme" | "low" | "custom";
-
-export interface CompressFileItemState {
+export interface OcrFileItemState {
   file: File;
   id: string;
   name: string;
   size: number;
-  status: "pending" | "compressing" | "done" | "error";
-  result?: CompressPdfResult;
+  status: "pending" | "processing" | "done" | "error";
+  result?: OcrPdfResult;
   errorMessage?: string;
 }
 
-interface PresetOption {
-  id: CompressionPreset;
-  title: string;
+interface LanguageOption {
+  id: string;
+  name: string;
   badge: string;
-  description: string;
-  icon: typeof Sparkles;
-  accentBg: string;
-  activeBorder: string;
-  activeBg: string;
+  desc: string;
 }
 
-const presetOptions: PresetOption[] = [
+const languageOptions: LanguageOption[] = [
   {
-    id: "recommended",
-    title: "Recommended",
-    badge: "Balanced",
-    description:
-      "Good compression, high visual quality. Best for emails & standard uploads.",
-    icon: Sparkles,
-    accentBg: "bg-teal-300",
-    activeBorder: "border-teal-600 dark:border-teal-400",
-    activeBg: "bg-teal-100 dark:bg-teal-950/40",
+    id: "eng+ind",
+    name: "English & Indonesian",
+    badge: "Recommended",
+    desc: "Best for mixed documents, academic theses, letters, & reports.",
   },
   {
-    id: "extreme",
-    title: "Extreme",
-    badge: "Smallest Size",
-    description:
-      "Maximum compression ratio. Best for strict file limits & job portals.",
-    icon: Zap,
-    accentBg: "bg-amber-300",
-    activeBorder: "border-amber-600 dark:border-amber-400",
-    activeBg: "bg-amber-100 dark:bg-amber-950/40",
+    id: "ind",
+    name: "Indonesian Only",
+    badge: "Bahasa",
+    desc: "Optimized for Indonesian ID cards, government forms, & local contracts.",
   },
   {
-    id: "low",
-    title: "Low Compression",
-    badge: "High Quality",
-    description:
-      "Light optimization. Keeps pristine sharpness for printing & high-res forms.",
-    icon: Gauge,
-    accentBg: "bg-blue-300",
-    activeBorder: "border-blue-600 dark:border-blue-400",
-    activeBg: "bg-blue-100 dark:bg-blue-950/40",
-  },
-  {
-    id: "custom",
-    title: "Target File Size",
-    badge: "Custom Size",
-    description:
-      "Specify your desired target file size (e.g. 200 KB, 500 KB, 1 MB).",
-    icon: Sliders,
-    accentBg: "bg-purple-300",
-    activeBorder: "border-purple-600 dark:border-purple-400",
-    activeBg: "bg-purple-100 dark:bg-purple-950/40",
+    id: "eng",
+    name: "English Only",
+    badge: "International",
+    desc: "Highest accuracy for English journals, invoices, & textbooks.",
   },
 ];
 
-export default function CompressPdfPage() {
-  const [items, setItems] = useState<CompressFileItemState[]>([]);
+export default function OcrPdfPage() {
+  const [items, setItems] = useState<OcrFileItemState[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [preset, setPreset] = useState<CompressionPreset>("recommended");
+  const [selectedLang, setSelectedLang] = useState<string>("eng+ind");
 
-  // Custom Target File Size settings
-  const [targetSizeValue, setTargetSizeValue] = useState<number>(200);
-  const [targetSizeUnit, setTargetSizeUnit] = useState<"KB" | "MB">("KB");
-
-  // Overall batch progress
+  // Progress state
   const [progress, setProgress] = useState<{
     currentIndex: number;
     total: number;
@@ -119,13 +80,15 @@ export default function CompressPdfPage() {
     percent: 0,
   });
 
-  // Preview Modal
-  const [previewItem, setPreviewItem] = useState<{
+  // Text Viewer Modal
+  const [textModalItem, setTextModalItem] = useState<{
     name: string;
-    blobUrl: string;
-    compressedSize: number;
+    text: string;
+    wordsCount: number;
+    totalPages: number;
   } | null>(null);
 
+  const [copied, setCopied] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const formatFileSize = (bytes: number): string => {
@@ -146,7 +109,7 @@ export default function CompressPdfPage() {
       return;
     }
 
-    const newItems: CompressFileItemState[] = validPdfs.map((file, idx) => ({
+    const newItems: OcrFileItemState[] = validPdfs.map((file, idx) => ({
       file,
       id: `${file.name}-${file.lastModified}-${Date.now()}-${idx}`,
       name: file.name,
@@ -154,57 +117,53 @@ export default function CompressPdfPage() {
       status: "pending",
     }));
 
-    // Append to queue
     const updatedItems = [...items, ...newItems];
     setItems(updatedItems);
     toast.info(
-      `Added ${validPdfs.length} file${validPdfs.length > 1 ? "s" : ""} to queue.`,
+      `Added ${validPdfs.length} document${validPdfs.length > 1 ? "s" : ""} to queue.`,
     );
 
-    // Auto-compress the new items
-    await compressItemsList(newItems, updatedItems);
+    await ocrItemsList(newItems, updatedItems);
   };
 
-  const compressItemsList = async (
-    itemsToCompress: CompressFileItemState[],
-    allItems: CompressFileItemState[],
+  const ocrItemsList = async (
+    itemsToOcr: OcrFileItemState[],
+    allItems: OcrFileItemState[],
   ) => {
     setIsProcessing(true);
     let currentPool = [...allItems];
 
-    const targetKb =
-      preset === "custom"
-        ? targetSizeUnit === "MB"
-          ? targetSizeValue * 1024
-          : targetSizeValue
-        : undefined;
-
-    const compressOpts: CompressPdfOptions = {
-      level: preset,
-      target_size_kb: targetKb,
-    };
-
-    for (let i = 0; i < itemsToCompress.length; i++) {
-      const target = itemsToCompress[i];
+    for (let i = 0; i < itemsToOcr.length; i++) {
+      const target = itemsToOcr[i];
       setProgress({
         currentIndex: i + 1,
-        total: itemsToCompress.length,
+        total: itemsToOcr.length,
         currentName: target.name,
-        percent: Math.round((i / itemsToCompress.length) * 100),
+        percent: Math.round((i / itemsToOcr.length) * 100),
       });
 
-      // Mark current as compressing
       currentPool = currentPool.map((it) =>
-        it.id === target.id ? { ...it, status: "compressing" } : it,
+        it.id === target.id ? { ...it, status: "processing" } : it,
       );
       setItems(currentPool);
 
       try {
         const cleanBase = target.name.replace(/\.pdf$/i, "");
-        const res = await compressPdfViaBackend(target.file, {
-          ...compressOpts,
-          output_file_name: `${cleanBase}_compressed.pdf`,
-        });
+        const res = await ocrPdfViaBackend(
+          target.file,
+          {
+            language: selectedLang,
+            output_file_name: `${cleanBase}_searchable.pdf`,
+          },
+          (uploadPercent) => {
+            setProgress((prev) => ({
+              ...prev,
+              percent: Math.round(
+                ((i + uploadPercent / 100) / itemsToOcr.length) * 100,
+              ),
+            }));
+          },
+        );
 
         currentPool = currentPool.map((it) =>
           it.id === target.id ? { ...it, status: "done", result: res } : it,
@@ -216,7 +175,7 @@ export default function CompressPdfPage() {
             ? {
                 ...it,
                 status: "error",
-                errorMessage: err.message || "Failed to compress",
+                errorMessage: err.message || "OCR failed",
               }
             : it,
         );
@@ -225,58 +184,63 @@ export default function CompressPdfPage() {
     }
 
     setProgress({
-      currentIndex: itemsToCompress.length,
-      total: itemsToCompress.length,
+      currentIndex: itemsToOcr.length,
+      total: itemsToOcr.length,
       currentName: "Completed",
       percent: 100,
     });
 
     setIsProcessing(false);
-    toast.success("Compression process completed!");
+    toast.success("OCR recognition completed!");
   };
 
-  const handleRecompressAll = async () => {
+  const handleReOcrAll = async () => {
     if (items.length === 0) return;
-    const itemsToRecompress = items.map((it) => ({
+    const itemsToReOcr = items.map((it) => ({
       ...it,
       status: "pending" as const,
       result: undefined,
       errorMessage: undefined,
     }));
-    setItems(itemsToRecompress);
-    await compressItemsList(itemsToRecompress, itemsToRecompress);
+    setItems(itemsToReOcr);
+    await ocrItemsList(itemsToReOcr, itemsToReOcr);
   };
 
   const handleDeleteItem = (id: string) => {
     setItems((prev) => prev.filter((i) => i.id !== id));
   };
 
-  const handleDownloadSingle = (item: CompressFileItemState) => {
-    if (!item.result) return;
-    const blob = base64ToPdfBlob(item.result.file_base64);
-    downloadPdfBlob(blob, item.result.file_name);
-  };
-
-  const handlePreviewItem = (item: CompressFileItemState) => {
-    if (!item.result) return;
-    const blob = base64ToPdfBlob(item.result.file_base64);
-    const blobUrl = URL.createObjectURL(blob);
-    setPreviewItem({
-      name: item.result.file_name,
-      blobUrl,
-      compressedSize: item.result.compressed_size,
-    });
-  };
-
-  const handleClosePreview = () => {
-    if (previewItem) {
-      URL.revokeObjectURL(previewItem.blobUrl);
-      setPreviewItem(null);
+  const handleDownloadPdf = (result: OcrPdfResult) => {
+    try {
+      const blob = base64ToPdfBlob(result.file_base64);
+      downloadPdfBlob(blob, result.file_name);
+      toast.success("Searchable PDF downloaded!");
+    } catch {
+      toast.error("Failed to generate PDF download.");
     }
   };
 
+  const handleDownloadTxt = (result: OcrPdfResult) => {
+    try {
+      const cleanBase = result.file_name
+        .replace(/_searchable\.pdf$/i, "")
+        .replace(/\.pdf$/i, "");
+      downloadTxtFile(result.extracted_text, `${cleanBase}_ocr_text.txt`);
+      toast.success("Extracted text downloaded (.txt)!");
+    } catch {
+      toast.error("Failed to download text file.");
+    }
+  };
+
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopied(true);
+    toast.success("Text copied to clipboard!");
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   const clearAll = () => {
-    handleClosePreview();
+    setTextModalItem(null);
     setItems([]);
     setProgress({ currentIndex: 0, total: 0, currentName: "", percent: 0 });
   };
@@ -350,18 +314,18 @@ export default function CompressPdfPage() {
       {/* Main Upload Dropzone */}
       <FileDropzone
         ref={fileInputRef}
-        title="Upload PDF to Compress"
-        description="Drag & drop one or multiple PDF files here to reduce file size."
-        dropzoneSubtitle="Supports documents, forms, reports, ebooks, and scanned PDFs."
+        title="Upload PDF to OCR"
+        description="Drag & drop scanned PDF documents here to recognize and extract text."
+        dropzoneSubtitle="Creates searchable PDFs and extracts readable text."
         accept=".pdf,application/pdf"
         multiple={true}
         iconBg="bg-teal-300"
-        icon={<FileArchive className={cn("h-7", "w-7", "text-gray-900")} />}
+        icon={<ScanText className={cn("h-7", "w-7", "text-gray-900")} />}
         onFilesSelected={handleProcessFiles}
         disabled={isProcessing}
       />
 
-      {/* Compression Level Selector Card */}
+      {/* OCR Settings Card */}
       <div
         className={cn(
           "space-y-4",
@@ -380,17 +344,15 @@ export default function CompressPdfPage() {
         <div
           className={cn(
             "flex",
-            "flex-col",
-            "sm:flex-row",
-            "sm:items-center",
-            "justify-between",
-            "gap-3",
+            "items-center",
+            "gap-2",
             "border-b-2",
             "border-gray-200",
             "dark:border-gray-800",
             "pb-4",
           )}
         >
+          <Languages className={cn("h-5", "w-5", "text-teal-600")} />
           <div>
             <h3
               className={cn(
@@ -400,7 +362,7 @@ export default function CompressPdfPage() {
                 "dark:text-white",
               )}
             >
-              Compression Settings
+              OCR Language Selection
             </h3>
             <p
               className={cn(
@@ -410,35 +372,26 @@ export default function CompressPdfPage() {
                 "dark:text-gray-400",
               )}
             >
-              Choose a preset level or customize your quality and resolution.
+              Select the primary language of your scanned document for maximum
+              recognition accuracy.
             </p>
           </div>
         </div>
 
-        {/* 4 Presets Grid */}
-        <div
-          className={cn(
-            "grid",
-            "grid-cols-1",
-            "sm:grid-cols-2",
-            "lg:grid-cols-4",
-            "gap-3.5",
-          )}
-        >
-          {presetOptions.map((opt) => {
-            const isSelected = preset === opt.id;
-            const Icon = opt.icon;
+        {/* Language Options Grid */}
+        <div className={cn("grid", "grid-cols-1", "sm:grid-cols-3", "gap-3.5")}>
+          {languageOptions.map((opt) => {
+            const isSelected = selectedLang === opt.id;
             return (
               <div
                 key={opt.id}
-                onClick={() => setPreset(opt.id)}
+                onClick={() => setSelectedLang(opt.id)}
                 className={cn(
                   "group",
-                  "relative",
                   "flex",
                   "flex-col",
                   "justify-between",
-                  "gap-3",
+                  "gap-2.5",
                   "rounded-2xl",
                   "border-3",
                   "p-4",
@@ -446,31 +399,24 @@ export default function CompressPdfPage() {
                   "cursor-pointer",
                   "hover:-translate-y-1",
                   isSelected
-                    ? `${opt.activeBorder} ${opt.activeBg} shadow-[4px_4px_0_0_#111827] dark:shadow-[4px_4px_0_0_#000]`
+                    ? "border-teal-600 dark:border-teal-400 bg-teal-50 dark:bg-teal-950/40 shadow-[4px_4px_0_0_#111827] dark:shadow-[4px_4px_0_0_#000]"
                     : "border-gray-300 dark:border-gray-700 bg-gray-50/60 dark:bg-gray-900/40 hover:border-gray-900",
                 )}
               >
-                <div className={cn("space-y-2")}>
+                <div className={cn("space-y-1")}>
                   <div
                     className={cn("flex", "items-center", "justify-between")}
                   >
-                    <div
+                    <h4
                       className={cn(
-                        "flex",
-                        "h-8",
-                        "w-8",
-                        "items-center",
-                        "justify-center",
-                        "rounded-xl",
-                        "border-2",
-                        "border-gray-900",
-                        opt.accentBg,
+                        "text-sm",
+                        "font-black",
                         "text-gray-900",
-                        "shadow-[1px_1px_0_0_#111827]",
+                        "dark:text-white",
                       )}
                     >
-                      <Icon className={cn("h-4", "w-4")} />
-                    </div>
+                      {opt.name}
+                    </h4>
                     <span
                       className={cn(
                         "rounded-md",
@@ -481,24 +427,13 @@ export default function CompressPdfPage() {
                         "text-[10px]",
                         "font-black",
                         isSelected
-                          ? "bg-gray-900 text-white dark:bg-white dark:text-gray-900"
+                          ? "bg-teal-400 text-gray-900"
                           : "bg-gray-200 dark:bg-gray-800 text-gray-700 dark:text-gray-300",
                       )}
                     >
                       {opt.badge}
                     </span>
                   </div>
-
-                  <h4
-                    className={cn(
-                      "text-sm",
-                      "font-black",
-                      "text-gray-900",
-                      "dark:text-white",
-                    )}
-                  >
-                    {opt.title}
-                  </h4>
                   <p
                     className={cn(
                       "text-xs",
@@ -508,177 +443,13 @@ export default function CompressPdfPage() {
                       "leading-relaxed",
                     )}
                   >
-                    {opt.description}
+                    {opt.desc}
                   </p>
                 </div>
-
-                <div
-                  className={cn(
-                    "mt-1",
-                    "flex",
-                    "items-center",
-                    "gap-1.5",
-                    "text-[10px]",
-                    "font-black",
-                    isSelected
-                      ? "text-gray-900 dark:text-white"
-                      : "text-gray-400",
-                  )}
-                ></div>
               </div>
             );
           })}
         </div>
-
-        {/* Custom Target File Size Panel (visible when Custom is selected) */}
-        {preset === "custom" && (
-          <div
-            className={cn(
-              "space-y-4",
-              "rounded-2xl",
-              "border-2",
-              "border-purple-900",
-              "dark:border-purple-600",
-              "bg-purple-50",
-              "dark:bg-purple-950/20",
-              "p-5",
-              "shadow-[3px_3px_0_0_#111827]",
-            )}
-          >
-            <div
-              className={cn("flex", "items-center", "justify-between", "gap-2")}
-            >
-              <div className={cn("flex", "items-center", "gap-2")}>
-                <Sliders
-                  className={cn(
-                    "h-4",
-                    "w-4",
-                    "text-purple-700",
-                    "dark:text-purple-300",
-                  )}
-                />
-                <h4
-                  className={cn(
-                    "text-xs",
-                    "font-black",
-                    "uppercase",
-                    "tracking-wider",
-                    "text-purple-900",
-                    "dark:text-purple-200",
-                  )}
-                >
-                  Target File Size
-                </h4>
-              </div>
-              <span
-                className={cn(
-                  "text-xs",
-                  "font-bold",
-                  "text-purple-800",
-                  "dark:text-purple-300",
-                )}
-              >
-                Target:{" "}
-                <strong
-                  className={cn(
-                    "text-gray-900",
-                    "dark:text-white",
-                    "font-black",
-                  )}
-                >
-                  {targetSizeValue} {targetSizeUnit}
-                </strong>
-              </span>
-            </div>
-
-            {/* Input & Unit Selector */}
-            <div className={cn("flex", "items-center", "gap-3")}>
-              <div className={cn("relative", "w-44")}>
-                <input
-                  type="number"
-                  min="1"
-                  max={targetSizeUnit === "MB" ? 100 : 100000}
-                  value={targetSizeValue || ""}
-                  onChange={(e) =>
-                    setTargetSizeValue(
-                      Math.max(1, parseInt(e.target.value, 10) || 0),
-                    )
-                  }
-                  placeholder="e.g. 200"
-                  className={cn(
-                    "w-full",
-                    "rounded-xl",
-                    "border-2",
-                    "border-gray-900",
-                    "bg-white",
-                    "dark:bg-gray-800",
-                    "px-3.5",
-                    "py-2",
-                    "text-base",
-                    "font-black",
-                    "text-gray-900",
-                    "dark:text-white",
-                    "shadow-[2px_2px_0_0_#111827]",
-                    "focus:outline-none",
-                    "focus:ring-2",
-                    "focus:ring-purple-500",
-                  )}
-                />
-              </div>
-
-              {/* Unit Selector Toggle (KB / MB) */}
-              <div
-                className={cn(
-                  "flex",
-                  "rounded-xl",
-                  "border-2",
-                  "border-gray-900",
-                  "bg-white",
-                  "dark:bg-gray-800",
-                  "p-1",
-                  "shadow-[2px_2px_0_0_#111827]",
-                )}
-              >
-                <button
-                  type="button"
-                  onClick={() => setTargetSizeUnit("KB")}
-                  className={cn(
-                    "px-3.5",
-                    "py-1.5",
-                    "rounded-lg",
-                    "text-xs",
-                    "font-black",
-                    "transition-all",
-                    "cursor-pointer",
-                    targetSizeUnit === "KB"
-                      ? "bg-purple-300 text-gray-900 shadow-[1px_1px_0_0_#111827]"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900",
-                  )}
-                >
-                  KB
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTargetSizeUnit("MB")}
-                  className={cn(
-                    "px-3.5",
-                    "py-1.5",
-                    "rounded-lg",
-                    "text-xs",
-                    "font-black",
-                    "transition-all",
-                    "cursor-pointer",
-                    targetSizeUnit === "MB"
-                      ? "bg-purple-300 text-gray-900 shadow-[1px_1px_0_0_#111827]"
-                      : "text-gray-600 dark:text-gray-400 hover:text-gray-900",
-                  )}
-                >
-                  MB
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Execution Action Button */}
         <div
@@ -722,7 +493,7 @@ export default function CompressPdfPage() {
           ) : (
             <button
               type="button"
-              onClick={handleRecompressAll}
+              onClick={handleReOcrAll}
               disabled={isProcessing}
               className={cn(
                 "rounded-xl",
@@ -745,7 +516,7 @@ export default function CompressPdfPage() {
                 "disabled:cursor-not-allowed",
               )}
             >
-              {isProcessing ? "Compressing..." : "Compress PDF"}
+              {isProcessing ? "Processing OCR..." : "OCR PDF"}
             </button>
           )}
         </div>
@@ -779,17 +550,12 @@ export default function CompressPdfPage() {
               "dark:text-white",
             )}
           >
-            <span className={cn("inline-flex", "items-center", "gap-2")}>
-              <Loader2
-                className={cn("h-4", "w-4", "animate-spin", "text-teal-600")}
-              />
-              <span>
-                Compressing{" "}
-                <span className={cn("text-teal-600", "dark:text-teal-400")}>
-                  {progress.currentName}
-                </span>{" "}
-                ({progress.currentIndex}/{progress.total})...
-              </span>
+            <span>
+              Recognizing text in{" "}
+              <span className={cn("text-teal-600", "dark:text-teal-400")}>
+                {progress.currentName}
+              </span>{" "}
+              ({progress.currentIndex}/{progress.total})...
             </span>
             <span>{progress.percent}%</span>
           </div>
@@ -815,19 +581,19 @@ export default function CompressPdfPage() {
                 "transition-all",
                 "duration-300",
               )}
-              style={{ width: `${Math.max(5, progress.percent)}%` }}
+              style={{ width: `${progress.percent}%` }}
             />
           </div>
         </div>
       )}
 
-      {/* Document Queue List (like Convert pages) */}
+      {/* Document Queue List */}
       {items.length > 0 && (
         <div className={cn("space-y-3")}>
           <div className={cn("space-y-3")}>
             {items.map((item, index) => {
               const isDone = item.status === "done";
-              const isCompressing = item.status === "compressing";
+              const isProcessingItem = item.status === "processing";
               const isError = item.status === "error";
 
               return (
@@ -853,52 +619,50 @@ export default function CompressPdfPage() {
                     "transition-all",
                   )}
                 >
-                  {/* File Info */}
+                  {/* Left info */}
                   <div
                     className={cn("flex", "items-center", "gap-3.5", "min-w-0")}
                   >
-                    <span
+                    <div
                       className={cn(
                         "flex",
-                        "h-8",
-                        "w-8",
+                        "h-7",
+                        "w-7",
                         "shrink-0",
                         "items-center",
                         "justify-center",
-                        "rounded-xl",
+                        "rounded-lg",
                         "border-2",
                         "border-gray-900",
                         "bg-teal-300",
                         "text-xs",
                         "font-black",
                         "text-gray-900",
-                        "shadow-[1px_1px_0_0_#111827]",
                       )}
                     >
                       #{index + 1}
-                    </span>
+                    </div>
 
                     <div
                       className={cn(
                         "flex",
-                        "h-10",
-                        "w-10",
+                        "h-11",
+                        "w-11",
                         "shrink-0",
                         "items-center",
                         "justify-center",
                         "rounded-xl",
                         "border-2",
                         "border-gray-900",
-                        "bg-red-400",
-                        "text-white",
-                        "shadow-[1px_1px_0_0_#111827]",
+                        "bg-red-100",
+                        "text-red-600",
                       )}
                     >
-                      <FileText className={cn("h-5", "w-5")} />
+                      <FileText className={cn("h-6", "w-6")} />
                     </div>
 
-                    <div className={cn("min-w-0")}>
-                      <p
+                    <div className={cn("min-w-0", "space-y-1")}>
+                      <h4
                         className={cn(
                           "truncate",
                           "text-sm",
@@ -906,83 +670,85 @@ export default function CompressPdfPage() {
                           "text-gray-900",
                           "dark:text-white",
                         )}
+                        title={item.name}
                       >
                         {item.name}
-                      </p>
+                      </h4>
+
                       <div
                         className={cn(
                           "flex",
+                          "flex-wrap",
                           "items-center",
                           "gap-2",
                           "text-xs",
-                          "font-bold",
                         )}
                       >
                         <span
-                          className={cn("text-gray-500", "dark:text-gray-400")}
+                          className={cn(
+                            "font-bold",
+                            "text-gray-500",
+                            "dark:text-gray-400",
+                          )}
                         >
                           {formatFileSize(item.size)}
                         </span>
 
+                        {isProcessingItem && (
+                          <span
+                            className={cn(
+                              "font-bold",
+                              "text-teal-600",
+                              "dark:text-teal-400",
+                            )}
+                          >
+                            • Processing OCR...
+                          </span>
+                        )}
+
                         {isDone && item.result && (
                           <>
-                            <ArrowRight
-                              className={cn("h-3", "w-3", "text-gray-400")}
-                            />
-                            <span
-                              className={cn("text-emerald-600", "font-black")}
-                            >
-                              {formatFileSize(item.result.compressed_size)}
-                            </span>
                             <span
                               className={cn(
                                 "rounded-md",
                                 "border",
-                                "border-gray-900/20",
+                                "border-emerald-600/30",
                                 "bg-emerald-100",
                                 "dark:bg-emerald-950/40",
-                                "px-1.5",
+                                "px-2",
                                 "py-0.5",
-                                "text-[10px]",
+                                "text-[11px]",
                                 "font-black",
                                 "text-emerald-700",
                                 "dark:text-emerald-300",
                               )}
                             >
-                              {item.result.saved_percentage > 0
-                                ? `-${item.result.saved_percentage.toFixed(1)}%`
-                                : "Optimized"}
+                              Searchable PDF Ready •{" "}
+                              {item.result.words_count.toLocaleString()} words
+                            </span>
+                            <span
+                              className={cn(
+                                "text-[11px]",
+                                "font-bold",
+                                "text-gray-500",
+                              )}
+                            >
+                              ({item.result.total_pages} page
+                              {item.result.total_pages > 1 ? "s" : ""})
                             </span>
                           </>
                         )}
 
-                        {isCompressing && (
-                          <span
-                            className={cn(
-                              "text-teal-600",
-                              "font-bold",
-                              "inline-flex",
-                              "items-center",
-                              "gap-1",
-                            )}
-                          >
-                            <Loader2
-                              className={cn("h-3", "w-3", "animate-spin")}
-                            />
-                            Compressing...
-                          </span>
-                        )}
-
                         {isError && (
-                          <span className={cn("text-rose-500", "font-bold")}>
-                            {item.errorMessage || "Compression failed"}
+                          <span className={cn("font-bold", "text-red-500")}>
+                            • {item.errorMessage || "OCR Recognition Failed"}
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
 
-                  {/* Actions Buttons */}
+                  {/* Right Actions */}
                   <div
                     className={cn(
                       "flex",
@@ -996,7 +762,8 @@ export default function CompressPdfPage() {
                       <>
                         <button
                           type="button"
-                          onClick={() => handleDownloadSingle(item)}
+                          onClick={() => handleDownloadPdf(item.result!)}
+                          title="Download Searchable PDF"
                           className={cn(
                             "flex",
                             "items-center",
@@ -1017,12 +784,20 @@ export default function CompressPdfPage() {
                           )}
                         >
                           <Download className={cn("h-3.5", "w-3.5")} />
-                          Download
+                          Download PDF
                         </button>
 
                         <button
                           type="button"
-                          onClick={() => handlePreviewItem(item)}
+                          onClick={() =>
+                            setTextModalItem({
+                              name: item.name,
+                              text: item.result!.extracted_text,
+                              wordsCount: item.result!.words_count,
+                              totalPages: item.result!.total_pages,
+                            })
+                          }
+                          title="View Extracted Text"
                           className={cn(
                             "flex",
                             "items-center",
@@ -1030,14 +805,15 @@ export default function CompressPdfPage() {
                             "rounded-xl",
                             "border-2",
                             "border-gray-900",
+                            "dark:border-gray-700",
                             "bg-white",
                             "dark:bg-gray-800",
                             "px-3.5",
                             "py-2",
                             "text-xs",
-                            "font-black",
-                            "text-gray-900",
-                            "dark:text-white",
+                            "font-bold",
+                            "text-gray-800",
+                            "dark:text-gray-200",
                             "shadow-[2px_2px_0_0_#111827]",
                             "dark:shadow-[2px_2px_0_0_#000]",
                             "hover:-translate-y-0.5",
@@ -1046,7 +822,35 @@ export default function CompressPdfPage() {
                           )}
                         >
                           <Eye className={cn("h-3.5", "w-3.5")} />
-                          Preview
+                          View Text
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => handleDownloadTxt(item.result!)}
+                          title="Download Text File (.txt)"
+                          className={cn(
+                            "flex",
+                            "items-center",
+                            "justify-center",
+                            "h-9",
+                            "w-9",
+                            "rounded-xl",
+                            "border-2",
+                            "border-gray-900",
+                            "dark:border-gray-700",
+                            "bg-gray-100",
+                            "dark:bg-gray-800",
+                            "text-gray-700",
+                            "dark:text-gray-300",
+                            "shadow-[2px_2px_0_0_#111827]",
+                            "dark:shadow-[2px_2px_0_0_#000]",
+                            "hover:-translate-y-0.5",
+                            "transition-all",
+                            "cursor-pointer",
+                          )}
+                        >
+                          <FileText className={cn("h-4", "w-4")} />
                         </button>
                       </>
                     )}
@@ -1054,20 +858,23 @@ export default function CompressPdfPage() {
                     <button
                       type="button"
                       onClick={() => handleDeleteItem(item.id)}
-                      disabled={isCompressing}
+                      disabled={isProcessing}
+                      title="Remove file"
                       className={cn(
                         "flex",
-                        "h-8",
-                        "w-8",
                         "items-center",
                         "justify-center",
+                        "h-9",
+                        "w-9",
                         "rounded-xl",
                         "border-2",
                         "border-gray-900",
-                        "bg-rose-100",
-                        "dark:bg-rose-950/40",
-                        "text-rose-600",
+                        "dark:border-gray-700",
+                        "bg-red-100",
+                        "dark:bg-red-950/40",
+                        "text-red-600",
                         "shadow-[2px_2px_0_0_#111827]",
+                        "dark:shadow-[2px_2px_0_0_#000]",
                         "hover:-translate-y-0.5",
                         "transition-all",
                         "cursor-pointer",
@@ -1083,8 +890,8 @@ export default function CompressPdfPage() {
         </div>
       )}
 
-      {/* Fullscreen PDF Preview Modal */}
-      {previewItem && (
+      {/* Extracted Text Viewer Modal */}
+      {textModalItem && (
         <div
           className={cn(
             "fixed",
@@ -1097,23 +904,28 @@ export default function CompressPdfPage() {
             "p-4",
             "backdrop-blur-xs",
           )}
+          onClick={() => setTextModalItem(null)}
         >
           <div
             className={cn(
+              "relative",
               "flex",
               "flex-col",
-              "h-[90vh]",
+              "max-h-[85vh]",
               "w-full",
-              "max-w-4xl",
+              "max-w-3xl",
               "rounded-3xl",
-              "border-4",
+              "border-3",
               "border-gray-900",
               "bg-white",
               "dark:bg-[#1a1c24]",
-              "overflow-hidden",
               "shadow-[8px_8px_0_0_#111827]",
+              "dark:shadow-[8px_8px_0_0_#000]",
+              "overflow-hidden",
             )}
+            onClick={(e) => e.stopPropagation()}
           >
+            {/* Modal Header */}
             <div
               className={cn(
                 "flex",
@@ -1121,53 +933,180 @@ export default function CompressPdfPage() {
                 "justify-between",
                 "border-b-3",
                 "border-gray-900",
+                "dark:border-gray-700",
                 "bg-teal-300",
-                "px-5",
-                "py-3",
+                "px-6",
+                "py-4",
               )}
             >
-              <div className={cn("flex", "items-center", "gap-2")}>
-                <FileText className={cn("h-5", "w-5", "text-gray-900")} />
-                <span className={cn("text-sm", "font-black", "text-gray-900")}>
-                  {previewItem.name} (
-                  {formatFileSize(previewItem.compressedSize)})
-                </span>
+              <div className={cn("min-w-0")}>
+                <h3
+                  className={cn(
+                    "truncate",
+                    "text-base",
+                    "font-black",
+                    "text-gray-900",
+                  )}
+                >
+                  Extracted OCR Text
+                </h3>
+                <p className={cn("text-xs", "font-bold", "text-gray-800")}>
+                  {textModalItem.name} •{" "}
+                  {textModalItem.wordsCount.toLocaleString()} words (
+                  {textModalItem.totalPages} pages)
+                </p>
               </div>
+
               <button
                 type="button"
-                onClick={handleClosePreview}
+                onClick={() => setTextModalItem(null)}
                 className={cn(
                   "flex",
                   "h-8",
                   "w-8",
                   "items-center",
                   "justify-center",
-                  "rounded-xl",
+                  "rounded-lg",
                   "border-2",
                   "border-gray-900",
                   "bg-white",
+                  "text-gray-900",
                   "shadow-[2px_2px_0_0_#111827]",
                   "hover:-translate-y-0.5",
                   "transition-all",
                   "cursor-pointer",
                 )}
               >
-                <X className={cn("h-4", "w-4", "text-gray-900")} />
+                <X className={cn("h-4", "w-4")} />
               </button>
             </div>
+
+            {/* Modal Body: Text Area */}
+            <div
+              className={cn("p-6", "overflow-y-auto", "flex-1", "space-y-4")}
+            >
+              <div
+                className={cn(
+                  "rounded-2xl",
+                  "border-2",
+                  "border-gray-300",
+                  "dark:border-gray-700",
+                  "bg-gray-50",
+                  "dark:bg-gray-900/60",
+                  "p-4",
+                  "font-mono",
+                  "text-xs",
+                  "sm:text-sm",
+                  "leading-relaxed",
+                  "text-gray-800",
+                  "dark:text-gray-200",
+                  "whitespace-pre-wrap",
+                  "select-text",
+                  "max-h-[50vh]",
+                  "overflow-y-auto",
+                )}
+              >
+                {textModalItem.text ? (
+                  textModalItem.text
+                ) : (
+                  <span className={cn("text-gray-400", "italic")}>
+                    No readable text detected in this document.
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Modal Footer */}
             <div
               className={cn(
-                "flex-1",
-                "w-full",
-                "bg-gray-100",
-                "dark:bg-gray-900",
+                "flex",
+                "items-center",
+                "justify-between",
+                "border-t-2",
+                "border-gray-200",
+                "dark:border-gray-800",
+                "bg-gray-50",
+                "dark:bg-gray-900/40",
+                "px-6",
+                "py-3.5",
               )}
             >
-              <iframe
-                src={previewItem.blobUrl}
-                title="Compressed PDF Preview"
-                className={cn("h-full", "w-full", "border-0")}
-              />
+              <span className={cn("text-xs", "font-bold", "text-gray-500")}>
+                Total words:{" "}
+                <strong>{textModalItem.wordsCount.toLocaleString()}</strong>
+              </span>
+
+              <div className={cn("flex", "items-center", "gap-2")}>
+                <button
+                  type="button"
+                  onClick={() => handleCopyText(textModalItem.text)}
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "rounded-xl",
+                    "border-2",
+                    "border-gray-900",
+                    "bg-teal-300",
+                    "px-4",
+                    "py-2",
+                    "text-xs",
+                    "font-black",
+                    "text-gray-900",
+                    "shadow-[2px_2px_0_0_#111827]",
+                    "hover:-translate-y-0.5",
+                    "transition-all",
+                    "cursor-pointer",
+                  )}
+                >
+                  {copied ? (
+                    <>
+                      <Check className={cn("h-3.5", "w-3.5")} />
+                      Copied!
+                    </>
+                  ) : (
+                    <>
+                      <Copy className={cn("h-3.5", "w-3.5")} />
+                      Copy Text
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    downloadTxtFile(
+                      textModalItem.text,
+                      `${textModalItem.name.replace(/\.pdf$/i, "")}_ocr.txt`,
+                    )
+                  }
+                  className={cn(
+                    "flex",
+                    "items-center",
+                    "gap-1.5",
+                    "rounded-xl",
+                    "border-2",
+                    "border-gray-900",
+                    "dark:border-gray-700",
+                    "bg-white",
+                    "dark:bg-gray-800",
+                    "px-4",
+                    "py-2",
+                    "text-xs",
+                    "font-black",
+                    "text-gray-900",
+                    "dark:text-white",
+                    "shadow-[2px_2px_0_0_#111827]",
+                    "dark:shadow-[2px_2px_0_0_#000]",
+                    "hover:-translate-y-0.5",
+                    "transition-all",
+                    "cursor-pointer",
+                  )}
+                >
+                  <Download className={cn("h-3.5", "w-3.5")} />
+                  Download TXT
+                </button>
+              </div>
             </div>
           </div>
         </div>

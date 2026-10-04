@@ -19,6 +19,9 @@ import { Toaster } from 'sonner';
 const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const AudioPage = lazy(() => import('@/pages/audio/audio'));
 const ImagePage = lazy(() => import('@/pages/image/image'));
+const ImageConverterPage = lazy(() => import('@/pages/image/image-converter/page'));
+const RemoveBgPage = lazy(() => import('@/pages/image/remove-bg/page'));
+const UpscalePage = lazy(() => import('@/pages/image/upscale/page'));
 
 const PDFPage = lazy(() => import('@/pages/pdf/pdf'));
 const PdfToJpgPage = lazy(() => import('@/pages/pdf/pdf-to-jpg/page'));
@@ -32,6 +35,7 @@ const MergePdfPage = lazy(() => import('@/pages/pdf/merge-pdf/page'));
 const SplitPdfPage = lazy(() => import('@/pages/pdf/split-pdf/page'));
 const RemovePdfPage = lazy(() => import('@/pages/pdf/remove-pdf/page'));
 const CompressPdfPage = lazy(() => import('@/pages/pdf/compress-pdf/page'));
+const OcrPdfPage = lazy(() => import('@/pages/pdf/ocr-pdf/page'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
 const RegisterPage = lazy(() => import('@/pages/auth/register'));
 const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
@@ -162,6 +166,9 @@ function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/audio" element={<AudioPage />} />
           <Route path="/image" element={<ImagePage />} />
+          <Route path="/image/image-converter" element={<ImageConverterPage />} />
+          <Route path="/image/remove-bg" element={<RemoveBgPage />} />
+          <Route path="/image/upscale" element={<UpscalePage />} />
           <Route path="/pdf" element={<PDFPage />} />
           <Route path="/pdf/pdf-to-jpg" element={<PdfToJpgPage />} />
           <Route path="/pdf/pdf-to-jpeg" element={<PdfToJpegPage />} />
@@ -174,6 +181,7 @@ function AppRoutes() {
           <Route path="/pdf/split-pdf" element={<SplitPdfPage />} />
           <Route path="/pdf/remove-pdf" element={<RemovePdfPage />} />
           <Route path="/pdf/compress-pdf" element={<CompressPdfPage />} />
+          <Route path="/pdf/ocr-pdf" element={<OcrPdfPage />} />
         </Route>
 
         <Route path="*" element={<NotFoundPage />} />

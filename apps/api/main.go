@@ -11,6 +11,10 @@ import (
 	splitpdf "magic-converter/src/modules/pdf/split-pdf"
 	removepdf "magic-converter/src/modules/pdf/remove-pdf"
 	compresspdf "magic-converter/src/modules/pdf/compress-pdf"
+	ocrpdf "magic-converter/src/modules/pdf/ocr-pdf"
+	convertimage "magic-converter/src/modules/image/convert-image"
+	removebg "magic-converter/src/modules/image/remove-bg"
+	upscaleimage "magic-converter/src/modules/image/upscale-image"
 	"magic-converter/src/routes"
 	"magic-converter/src/utils"
 
@@ -64,6 +68,14 @@ func main() {
 	c.Provide(removepdf.NewRemovePdfController)
 	c.Provide(compresspdf.NewCompressPdfService)
 	c.Provide(compresspdf.NewCompressPdfController)
+	c.Provide(ocrpdf.NewOcrPdfService)
+	c.Provide(ocrpdf.NewOcrPdfController)
+	c.Provide(convertimage.NewConvertImageService)
+	c.Provide(convertimage.NewConvertImageController)
+	c.Provide(removebg.NewRemoveBgService)
+	c.Provide(removebg.NewRemoveBgController)
+	c.Provide(upscaleimage.NewUpscaleImageService)
+	c.Provide(upscaleimage.NewUpscaleImageController)
 
 	c.Provide(func() *fiber.App {
 		cfg := config.FiberConfig()
@@ -97,10 +109,14 @@ func main() {
 		splitPdfController *splitpdf.SplitPdfController,
 		removePdfController *removepdf.RemovePdfController,
 		compressPdfController *compresspdf.CompressPdfController,
+		ocrPdfController *ocrpdf.OcrPdfController,
+		convertImageController *convertimage.ConvertImageController,
+		removeBgController *removebg.RemoveBgController,
+		upscaleImageController *upscaleimage.UpscaleImageController,
 		dbClient *bun.DB,
 		dragonflyClient *utils.DragonflyClient,
 	) {
-		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController, pdfToWordController, mergePdfController, splitPdfController, removePdfController, compressPdfController)
+		routes.RegisterRoutes(app, authController, authMiddleware, pdfToJpgController, pdfToExcelController, pdfToWordController, mergePdfController, splitPdfController, removePdfController, compressPdfController, ocrPdfController, convertImageController, removeBgController, upscaleImageController)
 
 		defer dbClient.Close()
 		defer dragonflyClient.Client.Close()

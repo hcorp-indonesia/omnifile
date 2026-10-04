@@ -136,3 +136,39 @@ html.dark {
   animation: watermark-breathe-right 7s ease-in-out -3.5s infinite;
   will-change: transform;
 }
+
+@keyframes surprise-nudge {
+  0%,
+  100% {
+    transform: translateX(0px) rotate(2deg) scale(1);
+  }
+  25% {
+    transform: translateX(-5px) rotate(-1deg) scale(1.03);
+  }
+  50% {
+    transform: translateX(-1px) rotate(3deg) scale(0.99);
+  }
+  75% {
+    transform: translateX(-6px) rotate(0deg) scale(1.04);
+  }
+}
+
+.animate-surprise-nudge {
+  animation: surprise-nudge 1.6s ease-in-out infinite;
+  will-change: transform;
+}
+
+@keyframes arrow-point-left {
+  0%,
+  100% {
+    transform: translateX(0px);
+  }
+  50% {
+    transform: translateX(-4px);
+  }
+}
+
+.animate-arrow-point {
+  animation: arrow-point-left 0.8s ease-in-out infinite;
+  will-change: transform;
+}
