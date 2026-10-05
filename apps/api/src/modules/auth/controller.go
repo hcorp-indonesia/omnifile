@@ -29,7 +29,6 @@ func (c *AuthController) setAuthCookies(ctx fiber.Ctx, result *AuthResult) {
 		SameSite: "Lax",
 		Path:     "/",
 	})
-
 	ctx.Cookie(&fiber.Cookie{
 		Name:     "refresh_token",
 		Value:    result.RefreshToken,
@@ -44,113 +43,71 @@ func (c *AuthController) setAuthCookies(ctx fiber.Ctx, result *AuthResult) {
 func (c *AuthController) clearAuthCookies(ctx fiber.Ctx) {
 	isSecure := os.Getenv("APP_ENV") == "production"
 	expired := time.Now().Add(-24 * time.Hour)
-
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "access_token",
-		Value:    "",
-		Expires:  expired,
-		HTTPOnly: true,
-		Secure:   isSecure,
-		SameSite: "Lax",
-		Path:     "/",
-	})
-
-	ctx.Cookie(&fiber.Cookie{
-		Name:     "refresh_token",
-		Value:    "",
-		Expires:  expired,
-		HTTPOnly: true,
-		Secure:   isSecure,
-		SameSite: "Lax",
-		Path:     "/",
-	})
+	for _, name := range []string{"access_token", "refresh_token"} {
+		ctx.Cookie(&fiber.Cookie{
+			Name:     name,
+			Value:    "",
+			Expires:  expired,
+			HTTPOnly: true,
+			Secure:   isSecure,
+			SameSite: "Lax",
+			Path:     "/",
+		})
+	}
 }
 
-func (c *AuthController) Register(ctx fiber.Ctx) error {
-	var req RegisterRequest
+func (c *AuthController) RequestLoginOTP(ctx fiber.Ctx) error {
+	var req RequestLoginOTPRequest
 	if err := ctx.Bind().Body(&req); err != nil {
 		return utils.ErrBadRequest("Invalid request body")
 	}
 
-	ip := ctx.IP()
-	ua := ctx.Get(fiber.HeaderUserAgent)
-
-	result, err := c.service.Register(ctx.Context(), &req, ip, ua)
+	result, err := c.service.RequestLoginOTP(ctx.Context(), &req, ctx.IP())
 	if err != nil {
 		return err
 	}
-
-	c.setAuthCookies(ctx, result)
-	return utils.RespondSuccess(ctx, "Registration successful", result.User)
+	return utils.RespondSuccess(ctx, "Login code sent", result)
 }
 
-func (c *AuthController) Login(ctx fiber.Ctx) error {
-	var req LoginRequest
+func (c *AuthController) VerifyLoginOTP(ctx fiber.Ctx) error {
+	var req VerifyLoginOTPRequest
 	if err := ctx.Bind().Body(&req); err != nil {
 		return utils.ErrBadRequest("Invalid request body")
 	}
 
-	ip := ctx.IP()
-	ua := ctx.Get(fiber.HeaderUserAgent)
-
-	result, err := c.service.Login(ctx.Context(), &req, ip, ua)
+	result, err := c.service.VerifyLoginOTP(ctx.Context(), &req, ctx.IP(), ctx.Get(fiber.HeaderUserAgent))
 	if err != nil {
 		return err
 	}
-
 	c.setAuthCookies(ctx, result)
 	return utils.RespondSuccess(ctx, "Login successful", result.User)
-}
-
-func (c *AuthController) GoogleAuth(ctx fiber.Ctx) error {
-	var req GoogleAuthRequest
-	if err := ctx.Bind().Body(&req); err != nil {
-		return utils.ErrBadRequest("Invalid request body")
-	}
-
-	ip := ctx.IP()
-	ua := ctx.Get(fiber.HeaderUserAgent)
-
-	result, err := c.service.GoogleAuth(ctx.Context(), &req, ip, ua)
-	if err != nil {
-		return err
-	}
-
-	c.setAuthCookies(ctx, result)
-	return utils.RespondSuccess(ctx, "Google authentication successful", result.User)
 }
 
 func (c *AuthController) Refresh(ctx fiber.Ctx) error {
 	refreshToken := ctx.Cookies("refresh_token")
 	if refreshToken == "" {
-
 		var body struct {
 			RefreshToken string `json:"refresh_token"`
 		}
 		_ = ctx.Bind().Body(&body)
 		refreshToken = body.RefreshToken
 	}
-
 	if refreshToken == "" {
-		return utils.ErrUnauthorized("No refresh token provided in cookies")
+		return utils.ErrUnauthorized("No refresh token provided")
 	}
 
-	ip := ctx.IP()
-	ua := ctx.Get(fiber.HeaderUserAgent)
-
-	result, err := c.service.RefreshToken(ctx.Context(), refreshToken, ip, ua)
+	result, err := c.service.RefreshToken(ctx.Context(), refreshToken, ctx.IP(), ctx.Get(fiber.HeaderUserAgent))
 	if err != nil {
 		c.clearAuthCookies(ctx)
 		return err
 	}
-
 	c.setAuthCookies(ctx, result)
-	return utils.RespondSuccess(ctx, "Tokens refreshed successfully", result.User)
+	return utils.RespondSuccess(ctx, "Session refreshed", result.User)
 }
 
 func (c *AuthController) Me(ctx fiber.Ctx) error {
-	if userVal := ctx.Locals("user"); userVal != nil {
-		if user, ok := userVal.(*UserResponse); ok {
+	if userValue := ctx.Locals("user"); userValue != nil {
+		if user, ok := userValue.(*UserResponse); ok {
 			return utils.RespondSuccess(ctx, "Authenticated user", user)
 		}
 	}
@@ -165,9 +122,7 @@ func (c *AuthController) Me(ctx fiber.Ctx) error {
 
 	refreshToken := ctx.Cookies("refresh_token")
 	if refreshToken != "" {
-		ip := ctx.IP()
-		ua := ctx.Get(fiber.HeaderUserAgent)
-		result, err := c.service.RefreshToken(ctx.Context(), refreshToken, ip, ua)
+		result, err := c.service.RefreshToken(ctx.Context(), refreshToken, ctx.IP(), ctx.Get(fiber.HeaderUserAgent))
 		if err == nil {
 			c.setAuthCookies(ctx, result)
 			return utils.RespondSuccess(ctx, "Authenticated user", result.User)
@@ -179,37 +134,7 @@ func (c *AuthController) Me(ctx fiber.Ctx) error {
 }
 
 func (c *AuthController) Logout(ctx fiber.Ctx) error {
-	accessToken := ctx.Cookies("access_token")
-	refreshToken := ctx.Cookies("refresh_token")
-
-	_ = c.service.Logout(ctx.Context(), accessToken, refreshToken)
+	_ = c.service.Logout(ctx.Context(), ctx.Cookies("access_token"), ctx.Cookies("refresh_token"))
 	c.clearAuthCookies(ctx)
-
 	return utils.RespondSuccess(ctx, "Logged out successfully", nil)
-}
-
-func (c *AuthController) RequestPasswordReset(ctx fiber.Ctx) error {
-	var req RequestPasswordResetRequest
-	if err := ctx.Bind().Body(&req); err != nil {
-		return utils.ErrBadRequest("Invalid request body")
-	}
-
-	if err := c.service.RequestPasswordReset(ctx.Context(), &req); err != nil {
-		return err
-	}
-
-	return utils.RespondSuccess(ctx, "If the email is registered, a password reset link has been sent.", nil)
-}
-
-func (c *AuthController) ResetPassword(ctx fiber.Ctx) error {
-	var req ResetPasswordRequest
-	if err := ctx.Bind().Body(&req); err != nil {
-		return utils.ErrBadRequest("Invalid request body")
-	}
-
-	if err := c.service.ResetPassword(ctx.Context(), &req); err != nil {
-		return err
-	}
-
-	return utils.RespondSuccess(ctx, "Password updated successfully. Please sign in again.", nil)
 }

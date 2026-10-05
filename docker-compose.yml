@@ -1,76 +1,61 @@
 services:
-    app:
-        build:
-            context: .
-            dockerfile: Dockerfile
-        container_name: magic-converter-app
-        restart: unless-stopped
-        ports:
-            - "8000:8000"
-        depends_on:
-            postgres:
-                condition: service_healthy
-            dragonfly:
-                condition: service_started
-        env_file:
-            - path: .env
-              required: false
-        environment:
-            - APP_ENV=${APP_ENV:-development}
-            - APP_HOST=0.0.0.0
-            - APP_PORT=8000
-            - DB_USER=${DB_USER:-postgres}
-            - DB_PASSWORD=${DB_PASSWORD:-password}
-            - DB_HOST=postgres
-            - DB_PORT=5432
-            - DB_NAME=${DB_NAME:-magic_converter}
-            - DB_SSL_MODE=disable
-            - DRAGONFLY_ADDR=dragonfly:6379
-            - DRAGONFLY_PASSWORD=
-            - DRAGONFLY_DB=0
-            - DRAGONFLY_KEY_PREFIX=magic_converter
-            - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-*}
-            - CORS_ALLOW_HEADERS=Origin, Content-Type, Accept, Authorization
-            - CORS_ALLOW_METHODS=GET,POST,DELETE,OPTIONS,PUT,PATCH
-            - CORS_EXPOSE_HEADERS=X-Remove-Bg-Original-Format,X-Remove-Bg-Converted-Format,X-Remove-Bg-Original-Size,X-Remove-Bg-Result-Size,X-Remove-Bg-Original-Width,X-Remove-Bg-Original-Height,X-Remove-Bg-Width,X-Remove-Bg-Height,X-Remove-Bg-Model
-            - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
-            - REALESRGAN_MODEL_PATH=/models/RealESRGAN_x4plus.pth
-            - REALESRGAN_ENGINE=auto
-            - REALESRGAN_NCNN_PATH=/app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan
-            - REALESRGAN_NCNN_MODELS_PATH=/app/realesrgan-ncnn-vulkan/models
-            - REALESRGAN_NCNN_MODEL=realesr-animevideov3
-            - REMBG_MODEL_DIR=/models/rembg
-            - REMBG_PROVIDER=cpu
-        volumes:
-            - ./models:/models
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      APP_ENV: production
+      APP_HOST: 0.0.0.0
+      APP_PORT: 8000
+      FIBER_PREFORK: "false"
+      SERVER_READ_TIMEOUT: ${SERVER_READ_TIMEOUT:-120}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
 
-    postgres:
-        image: postgres:17-alpine
-        container_name: magic-converter-db
-        restart: unless-stopped
-        ports:
-            - "5432:5432"
-        environment:
-            POSTGRES_USER: ${DB_USER:-postgres}
-            POSTGRES_PASSWORD: ${DB_PASSWORD:-password}
-            POSTGRES_DB: ${DB_NAME:-magic_converter}
-        volumes:
-            - postgres_data:/var/lib/postgresql/data
-        healthcheck:
-            test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-magic_converter}"]
-            interval: 5s
-            timeout: 5s
-            retries: 5
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      DRAGONFLY_ADDR: ${DRAGONFLY_ADDR:?DRAGONFLY_ADDR is required}
+      DRAGONFLY_USERNAME: ${DRAGONFLY_USERNAME:-}
+      DRAGONFLY_PASSWORD: ${DRAGONFLY_PASSWORD:-}
+      DRAGONFLY_DB: ${DRAGONFLY_DB:-0}
+      DRAGONFLY_KEY_PREFIX: ${DRAGONFLY_KEY_PREFIX:-magic_converter}
 
-    dragonfly:
-        image: docker.dragonflydb.io/dragonflydb/dragonfly:latest
-        container_name: magic-converter-cache
-        restart: unless-stopped
-        ports:
-            - "6379:6379"
-        volumes:
-            - dragonfly_data:/data
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      OTP_SECRET: ${OTP_SECRET:?OTP_SECRET is required}
+      FRONTEND_URL: ${FRONTEND_URL:-}
+      CORS_ALLOW_ORIGINS: ${CORS_ALLOW_ORIGINS:-}
+      CORS_ALLOW_HEADERS: ${CORS_ALLOW_HEADERS:-Origin, Content-Type, Accept, Authorization}
+      CORS_ALLOW_METHODS: ${CORS_ALLOW_METHODS:-GET,POST,DELETE,OPTIONS,PUT,PATCH}
+      CORS_EXPOSE_HEADERS: ${CORS_EXPOSE_HEADERS:-X-Remove-Bg-Original-Format,X-Remove-Bg-Converted-Format,X-Remove-Bg-Original-Size,X-Remove-Bg-Result-Size,X-Remove-Bg-Original-Width,X-Remove-Bg-Original-Height,X-Remove-Bg-Width,X-Remove-Bg-Height,X-Remove-Bg-Model}
+
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_USERNAME: ${SMTP_USERNAME:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      PDFCO_API_KEY: ${PDFCO_API_KEY:-}
+
+      RUSTFS_ACCESS_KEY_ID: ${RUSTFS_ACCESS_KEY_ID:-}
+      RUSTFS_SECRET_ACCESS_KEY: ${RUSTFS_SECRET_ACCESS_KEY:-}
+      RUSTFS_REGION: ${RUSTFS_REGION:-us-east-1}
+      RUSTFS_BUCKET: ${RUSTFS_BUCKET:-magic-converter}
+      RUSTFS_ENDPOINT: ${RUSTFS_ENDPOINT:-}
+      RUSTFS_USE_PATH_STYLE: ${RUSTFS_USE_PATH_STYLE:-true}
+
+      TESSERACT_PATH: /usr/bin/tesseract
+      TESSERACT_LANG: ${TESSERACT_LANG:-eng+ind}
+      REALESRGAN_MODEL_PATH: /app/models/RealESRGAN_x4plus.pth
+      REALESRGAN_ENGINE: ${REALESRGAN_ENGINE:-auto}
+      REALESRGAN_NCNN_PATH: /app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan
+      REALESRGAN_NCNN_MODELS_PATH: /app/realesrgan-ncnn-vulkan/models
+      REALESRGAN_NCNN_MODEL: ${REALESRGAN_NCNN_MODEL:-realesr-animevideov3}
+      REMBG_MODEL_DIR: /app/models/rembg
+      REMBG_PROVIDER: cpu
+      REMBG_CPU_THREADS: ${REMBG_CPU_THREADS:-4}
+    volumes:
+      - model_cache:/app/models
 
 volumes:
-    postgres_data:
-    dragonfly_data:
+  model_cache:

@@ -1,29 +1,23 @@
 import { api } from '@/lib/api';
-import type { ApiResponse, User, RegisterPayload, LoginPayload, GoogleAuthPayload } from '@/types';
+import type {
+  ApiResponse,
+  RequestLoginOTPPayload,
+  RequestLoginOTPResult,
+  User,
+  VerifyLoginOTPPayload,
+} from '@/types';
 
 export const authService = {
-  requestPasswordReset: async (payload: { email: string }) => {
-    const { data } = await api.post<ApiResponse<null>>('/auth/password-reset/request', payload);
+  requestLoginOTP: async (payload: RequestLoginOTPPayload) => {
+    const { data } = await api.post<ApiResponse<RequestLoginOTPResult>>(
+      '/auth/request-otp',
+      payload,
+    );
     return data;
   },
 
-  resetPassword: async (payload: { token: string; new_password: string; confirm_password: string }) => {
-    const { data } = await api.post<ApiResponse<null>>('/auth/password-reset/confirm', payload);
-    return data;
-  },
-
-  register: async (payload: RegisterPayload) => {
-    const { data } = await api.post<ApiResponse<User>>('/auth/register', payload);
-    return data;
-  },
-
-  login: async (payload: LoginPayload) => {
-    const { data } = await api.post<ApiResponse<User>>('/auth/login', payload);
-    return data;
-  },
-
-  googleAuth: async (payload: GoogleAuthPayload) => {
-    const { data } = await api.post<ApiResponse<User>>('/auth/google', payload);
+  verifyLoginOTP: async (payload: VerifyLoginOTPPayload) => {
+    const { data } = await api.post<ApiResponse<User>>('/auth/verify-otp', payload);
     return data;
   },
 

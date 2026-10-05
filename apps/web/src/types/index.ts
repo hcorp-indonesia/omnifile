@@ -1,2 +1,7 @@
 export type { ApiResponse, Metadata, Converter, ConverterListItem } from './converter';
-export type { User, RegisterPayload, LoginPayload, GoogleAuthPayload } from './auth';
+export type {
+  User,
+  RequestLoginOTPPayload,
+  VerifyLoginOTPPayload,
+  RequestLoginOTPResult,
+} from './auth';

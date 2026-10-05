@@ -979,7 +979,7 @@ export default function Header() {
                         "whitespace-nowrap",
                       )}
                     >
-                      {user.name || user.email}
+                      {user.email}
                     </div>
                   </div>
                   <div
@@ -1049,30 +1049,6 @@ export default function Header() {
                 )}
               >
                 Login
-              </Link>
-              <Link
-                to="/register"
-                state={{ backgroundLocation: location }}
-                className={cn(
-                  "flex",
-                  "h-11",
-                  "items-center",
-                  "justify-center",
-                  "shrink-0",
-                  "px-5",
-                  "rounded-xl",
-                  "border-3",
-                  "border-gray-900",
-                  "font-bold",
-                  "text-gray-900",
-                  "bg-purple-400",
-                  "hover:bg-purple-500",
-                  "hover:-translate-y-1",
-                  "hover:shadow-[4px_4px_0_0_#111827]",
-                  "transition-all",
-                )}
-              >
-                Sign Up
               </Link>
             </>
           )}

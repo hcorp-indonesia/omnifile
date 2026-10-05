@@ -39,9 +39,6 @@ const RemovePdfPage = lazy(() => import('@/pages/pdf/remove-pdf/page'));
 const CompressPdfPage = lazy(() => import('@/pages/pdf/compress-pdf/page'));
 const OcrPdfPage = lazy(() => import('@/pages/pdf/ocr-pdf/page'));
 const LoginPage = lazy(() => import('@/pages/auth/login'));
-const RegisterPage = lazy(() => import('@/pages/auth/register'));
-const ForgotPasswordPage = lazy(() => import('@/pages/auth/forgot-password'));
-const ResetPasswordPage = lazy(() => import('@/pages/auth/reset-password'));
 const NotFoundPage = lazy(() => import('@/pages/not-found'));
 
 type AuthLocationState = {
@@ -149,11 +146,7 @@ function AuthOverlay({
 function AppRoutes() {
   const location = useLocation();
   const locationState = location.state as AuthLocationState | null;
-  const isAuthRoute =
-    location.pathname === '/login' ||
-    location.pathname === '/register' ||
-    location.pathname === '/forgot-password' ||
-    location.pathname === '/reset-password';
+  const isAuthRoute = location.pathname === '/login';
   const fallbackBackground = isAuthRoute
     ? { ...location, pathname: '/dashboard', search: '', hash: '' }
     : location;
@@ -163,6 +156,9 @@ function AppRoutes() {
     <>
       <Routes location={backgroundLocation}>
         <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        <Route path="/register" element={<Navigate to="/login" replace />} />
+        <Route path="/forgot-password" element={<Navigate to="/login" replace />} />
+        <Route path="/reset-password" element={<Navigate to="/login" replace />} />
 
         <Route element={<MainLayout />}>
           <Route path="/dashboard" element={<DashboardPage />} />
@@ -198,30 +194,6 @@ function AppRoutes() {
             element={
               <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
                 <LoginPage />
-              </AuthOverlay>
-            }
-          />
-          <Route
-            path="/register"
-            element={
-              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
-                <RegisterPage />
-              </AuthOverlay>
-            }
-          />
-          <Route
-            path="/forgot-password"
-            element={
-              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
-                <ForgotPasswordPage />
-              </AuthOverlay>
-            }
-          />
-          <Route
-            path="/reset-password"
-            element={
-              <AuthOverlay backgroundLocation={locationState?.backgroundLocation}>
-                <ResetPasswordPage />
               </AuthOverlay>
             }
           />

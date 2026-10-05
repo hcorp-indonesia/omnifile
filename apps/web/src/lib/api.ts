@@ -34,8 +34,8 @@ api.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes('/auth/login') &&
-      !originalRequest.url?.includes('/auth/register') &&
+      !originalRequest.url?.includes('/auth/request-otp') &&
+      !originalRequest.url?.includes('/auth/verify-otp') &&
       !originalRequest.url?.includes('/auth/refresh')
     ) {
       if (isRefreshing) {

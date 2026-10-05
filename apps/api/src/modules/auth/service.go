@@ -2,9 +2,16 @@ package auth
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/rand"
+	"crypto/sha256"
+	"crypto/subtle"
 	"database/sql"
 	"encoding/hex"
+	"fmt"
+	"math/big"
+	"net/mail"
+	"os"
 	"strings"
 	"time"
 	"unicode"
@@ -17,9 +24,13 @@ import (
 )
 
 const (
-	AccessTokenDuration        = 7 * 24 * time.Hour  // 1 week
-	RefreshTokenDuration       = 30 * 24 * time.Hour // 1 month
-	PasswordResetTokenDuration = 15 * time.Minute
+	AccessTokenDuration  = 7 * 24 * time.Hour
+	RefreshTokenDuration = 30 * 24 * time.Hour
+	LoginOTPDuration     = 10 * time.Minute
+	LoginOTPCooldown     = 60 * time.Second
+	LoginOTPMaxAttempts  = 5
+	LoginOTPIPWindow     = 10 * time.Minute
+	LoginOTPIPMaxRequest = 10
 )
 
 type AuthService struct {
@@ -31,261 +42,251 @@ func NewAuthService(db *bun.DB, mailer *utils.SMTPMailer) *AuthService {
 	return &AuthService{db: db, mailer: mailer}
 }
 
-func generateSecureToken(byteLen int) (string, error) {
-	b := make([]byte, byteLen)
-	if _, err := rand.Read(b); err != nil {
+func generateSecureToken(byteLength int) (string, error) {
+	buffer := make([]byte, byteLength)
+	if _, err := rand.Read(buffer); err != nil {
 		return "", err
 	}
-	return hex.EncodeToString(b), nil
+	return hex.EncodeToString(buffer), nil
 }
 
-func (s *AuthService) RequestPasswordReset(ctx context.Context, req *RequestPasswordResetRequest) error {
-	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
-	if cleanEmail == "" || !strings.Contains(cleanEmail, "@") {
-		return utils.ErrBadRequest("A valid email address is required")
-	}
-	user := new(User)
-	if err := s.db.NewSelect().Model(user).Where("LOWER(email) = ?", cleanEmail).Scan(ctx); err != nil {
-		if err == sql.ErrNoRows {
-			return nil
-		}
-		return utils.ErrInternalServerError("Unable to process password reset request")
-	}
-
-	rawToken, err := generateSecureToken(32)
+func generateLoginOTP() (string, error) {
+	value, err := rand.Int(rand.Reader, big.NewInt(1_000_000))
 	if err != nil {
-		return utils.ErrInternalServerError("Unable to generate password reset token")
+		return "", err
 	}
-	token := &PasswordResetToken{
-		UserID:    user.ID,
-		Token:     rawToken,
-		ExpiresAt: time.Now().Add(PasswordResetTokenDuration),
-		CreatedAt: time.Now(),
-	}
-
-	if _, err := s.db.NewUpdate().Model((*PasswordResetToken)(nil)).
-		Set("used_at = ?", time.Now()).
-		Where("user_id = ?", user.ID).
-		Where("used_at IS NULL").
-		Exec(ctx); err != nil {
-		return utils.ErrInternalServerError("Unable to prepare password reset request")
-	}
-	if _, err := s.db.NewInsert().Model(token).Exec(ctx); err != nil {
-		return utils.ErrInternalServerError("Unable to prepare password reset request")
-	}
-
-	if err := s.mailer.SendPasswordReset(user.Email, user.Name, rawToken); err != nil {
-		log.Error().Err(err).Msg("Failed to send password reset email")
-		_, _ = s.db.NewDelete().Model(token).WherePK().Exec(ctx)
-	}
-
-	return nil
+	return fmt.Sprintf("%06d", value.Int64()), nil
 }
 
-func validatePassword(password string) error {
-	if len(password) < 8 {
-		return utils.ErrBadRequest("Password must be at least 8 characters")
+func normalizeEmail(rawEmail string) (string, error) {
+	email := strings.ToLower(strings.TrimSpace(rawEmail))
+	address, err := mail.ParseAddress(email)
+	if err != nil || address.Address != email || !strings.Contains(email, "@") {
+		return "", utils.ErrBadRequest("A valid email address is required")
 	}
-
-	var hasUpper, hasSpecial bool
-	for _, r := range password {
-		if unicode.IsUpper(r) {
-			hasUpper = true
-		} else if !unicode.IsLetter(r) && !unicode.IsDigit(r) {
-			hasSpecial = true
-		}
-	}
-
-	if !hasUpper {
-		return utils.ErrBadRequest("Password must contain at least one uppercase letter")
-	}
-	if !hasSpecial {
-		return utils.ErrBadRequest("Password must contain at least one special character (!@#$%^&* etc.)")
-	}
-
-	return nil
+	return email, nil
 }
 
-func (s *AuthService) ResetPassword(ctx context.Context, req *ResetPasswordRequest) error {
-	if req.NewPassword != req.ConfirmPassword {
-		return utils.ErrBadRequest("Passwords do not match")
+func loginOTPDigest(email, code string) (string, error) {
+	secret := strings.TrimSpace(os.Getenv("OTP_SECRET"))
+	if secret == "" {
+		secret = strings.TrimSpace(os.Getenv("JWT_SECRET"))
+	}
+	if secret == "" {
+		return "", fmt.Errorf("OTP_SECRET or JWT_SECRET is required")
 	}
 
-	if err := validatePassword(req.NewPassword); err != nil {
-		return err
-	}
+	digest := hmac.New(sha256.New, []byte(secret))
+	_, _ = digest.Write([]byte(email + ":" + code))
+	return hex.EncodeToString(digest.Sum(nil)), nil
+}
 
-	rawToken := strings.TrimSpace(req.Token)
-	now := time.Now()
-	resetToken := new(PasswordResetToken)
-
-	if err := s.db.NewSelect().Model(resetToken).
-		Where("prt.token = ?", rawToken).
-		Where("prt.used_at IS NULL").
-		Where("prt.expires_at > ?", now).
-		Scan(ctx); err != nil {
-		if err == sql.ErrNoRows {
-			return utils.ErrBadRequest("Invalid or expired password reset link")
-		}
-		return utils.ErrInternalServerError("Unable to verify password reset link")
-	}
-
-	hashedPassword, err := utils.HashPassword(req.NewPassword)
+func (s *AuthService) RequestLoginOTP(ctx context.Context, req *RequestLoginOTPRequest, ip string) (*RequestLoginOTPResult, error) {
+	email, err := normalizeEmail(req.Email)
 	if err != nil {
-		return utils.ErrInternalServerError("Unable to update password")
-	}
-
-	err = s.db.RunInTx(ctx, nil, func(ctx context.Context, tx bun.Tx) error {
-		user := &User{ID: resetToken.UserID, Password: &hashedPassword, UpdatedAt: now}
-		if _, err := tx.NewUpdate().Model(user).Column("password", "updated_at").WherePK().Exec(ctx); err != nil {
-			return err
-		}
-		if _, err := tx.NewUpdate().Model((*Session)(nil)).
-			Set("is_revoked = true").
-			Set("updated_at = ?", now).
-			Where("user_id = ?", resetToken.UserID).
-			Where("is_revoked = false").
-			Exec(ctx); err != nil {
-			return err
-		}
-		_, err := tx.NewUpdate().Model(resetToken).Column("used_at").WherePK().Exec(ctx)
-		if err != nil {
-			return err
-		}
-		resetToken.UsedAt = &now
-		return nil
-	})
-	if err != nil {
-		return utils.ErrInternalServerError("Unable to update password")
-	}
-
-	return nil
-}
-
-func (s *AuthService) Register(ctx context.Context, req *RegisterRequest, ip, ua string) (*AuthResult, error) {
-	name := strings.TrimSpace(req.Name)
-	if name == "" {
-		return nil, utils.ErrBadRequest("Name is required")
-	}
-
-	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
-	if cleanEmail == "" || !strings.Contains(cleanEmail, "@") {
-		return nil, utils.ErrBadRequest("A valid email address is required")
-	}
-
-	if req.Password == "" {
-		return nil, utils.ErrBadRequest("Password is required")
-	}
-
-	if req.Password != req.ConfirmPassword {
-		return nil, utils.ErrBadRequest("Passwords do not match")
-	}
-
-	if err := validatePassword(req.Password); err != nil {
 		return nil, err
 	}
 
-	// Check existing user
-	exists, err := s.db.NewSelect().
-		Model((*User)(nil)).
-		Where("LOWER(email) = ?", cleanEmail).
-		Exists(ctx)
-	if err != nil {
-		return nil, utils.ErrInternalServerError("Database error checking email")
-	}
-	if exists {
-		return nil, utils.ErrConflict("Email is already registered")
+	now := time.Now()
+	if ip != "" {
+		requestCount, countErr := s.db.NewSelect().Model((*LoginOTP)(nil)).
+			Where("requested_ip = ?", ip).
+			Where("created_at > ?", now.Add(-LoginOTPIPWindow)).
+			Count(ctx)
+		if countErr != nil {
+			log.Error().Err(countErr).Msg("Failed to check OTP IP rate limit")
+			return nil, utils.ErrInternalServerError("Unable to send login code")
+		}
+		if requestCount >= LoginOTPIPMaxRequest {
+			return nil, utils.ErrTooManyRequests("Too many login code requests. Please try again later")
+		}
 	}
 
-	// Hash password
-	hashed, err := utils.HashPassword(req.Password)
-	if err != nil {
-		return nil, utils.ErrInternalServerError("Failed to hash password")
+	latestOTP := new(LoginOTP)
+	err = s.db.NewSelect().Model(latestOTP).
+		Where("lo.email = ?", email).
+		Order("lo.created_at DESC").
+		Limit(1).
+		Scan(ctx)
+	if err == nil && latestOTP.CreatedAt.Add(LoginOTPCooldown).After(now) {
+		return nil, utils.ErrTooManyRequests("Please wait one minute before requesting another code")
 	}
-	passwordHash := hashed
+	if err != nil && err != sql.ErrNoRows {
+		log.Error().Err(err).Msg("Failed to check OTP cooldown")
+		return nil, utils.ErrInternalServerError("Unable to send login code")
+	}
+
+	code, err := generateLoginOTP()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to generate login OTP")
+		return nil, utils.ErrInternalServerError("Unable to send login code")
+	}
+	digest, err := loginOTPDigest(email, code)
+	if err != nil {
+		log.Error().Err(err).Msg("OTP secret is not configured")
+		return nil, utils.ErrInternalServerError("Unable to send login code")
+	}
+
+	if _, err := s.db.NewUpdate().Model((*LoginOTP)(nil)).
+		Set("used_at = ?", now).
+		Where("email = ?", email).
+		Where("used_at IS NULL").
+		Exec(ctx); err != nil {
+		log.Error().Err(err).Msg("Failed to invalidate previous login OTP")
+		return nil, utils.ErrInternalServerError("Unable to send login code")
+	}
+
+	otp := &LoginOTP{
+		Email:       email,
+		CodeDigest:  digest,
+		ExpiresAt:   now.Add(LoginOTPDuration),
+		RequestedIP: &ip,
+		CreatedAt:   now,
+	}
+	if _, err := s.db.NewInsert().Model(otp).Exec(ctx); err != nil {
+		log.Error().Err(err).Msg("Failed to persist login OTP")
+		return nil, utils.ErrInternalServerError("Unable to send login code")
+	}
+
+	if err := s.mailer.SendLoginOTP(email, code, LoginOTPDuration); err != nil {
+		log.Error().Err(err).Msg("Failed to send login OTP email")
+		_, _ = s.db.NewDelete().Model(otp).WherePK().Exec(ctx)
+		return nil, utils.ErrInternalServerError("Unable to send login code. Please try again later")
+	}
+
+	return &RequestLoginOTPResult{
+		Email:             email,
+		ExpiresInSeconds:  int(LoginOTPDuration.Seconds()),
+		ResendAfterSecond: int(LoginOTPCooldown.Seconds()),
+	}, nil
+}
+
+func (s *AuthService) VerifyLoginOTP(ctx context.Context, req *VerifyLoginOTPRequest, ip, userAgent string) (*AuthResult, error) {
+	email, err := normalizeEmail(req.Email)
+	if err != nil {
+		return nil, err
+	}
+	code := strings.TrimSpace(req.Code)
+	if len(code) != 6 {
+		return nil, utils.ErrBadRequest("The login code must contain 6 digits")
+	}
+	for _, character := range code {
+		if !unicode.IsDigit(character) {
+			return nil, utils.ErrBadRequest("The login code must contain 6 digits")
+		}
+	}
 
 	now := time.Now()
-	user := &User{
-		Name:      name,
-		Email:     cleanEmail,
-		Password:  &passwordHash,
-		Provider:  "local",
+	otp := new(LoginOTP)
+	err = s.db.NewSelect().Model(otp).
+		Where("lo.email = ?", email).
+		Where("lo.used_at IS NULL").
+		Where("lo.expires_at > ?", now).
+		Where("lo.attempts < ?", LoginOTPMaxAttempts).
+		Order("lo.created_at DESC").
+		Limit(1).
+		Scan(ctx)
+	if err != nil {
+		if err != sql.ErrNoRows {
+			log.Error().Err(err).Msg("Failed to load login OTP")
+		}
+		return nil, utils.ErrUnauthorized("Invalid or expired login code")
+	}
+
+	expectedDigest, err := loginOTPDigest(email, code)
+	if err != nil {
+		log.Error().Err(err).Msg("OTP secret is not configured")
+		return nil, utils.ErrInternalServerError("Unable to verify login code")
+	}
+	if subtle.ConstantTimeCompare([]byte(expectedDigest), []byte(otp.CodeDigest)) != 1 {
+		update := s.db.NewUpdate().Model(otp).Set("attempts = attempts + 1")
+		if otp.Attempts+1 >= LoginOTPMaxAttempts {
+			update = update.Set("used_at = ?", now)
+		}
+		if _, updateErr := update.WherePK().Exec(ctx); updateErr != nil {
+			log.Error().Err(updateErr).Msg("Failed to update login OTP attempts")
+		}
+		return nil, utils.ErrUnauthorized("Invalid or expired login code")
+	}
+
+	result, err := s.db.NewUpdate().Model(otp).
+		Set("used_at = ?", now).
+		WherePK().
+		Where("used_at IS NULL").
+		Exec(ctx)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to consume login OTP")
+		return nil, utils.ErrInternalServerError("Unable to verify login code")
+	}
+	rowsAffected, _ := result.RowsAffected()
+	if rowsAffected != 1 {
+		return nil, utils.ErrUnauthorized("Login code has already been used")
+	}
+
+	user, err := s.findOrCreateUser(ctx, email, now)
+	if err != nil {
+		return nil, err
+	}
+	return s.createSession(ctx, user, true, ip, userAgent)
+}
+
+func (s *AuthService) findOrCreateUser(ctx context.Context, email string, now time.Time) (*User, error) {
+	user := new(User)
+	err := s.db.NewSelect().Model(user).Where("LOWER(email) = ?", email).Scan(ctx)
+	if err == nil {
+		if user.Provider != "email_otp" {
+			user.Provider = "email_otp"
+			user.UpdatedAt = now
+			if _, updateErr := s.db.NewUpdate().Model(user).Column("provider", "updated_at").WherePK().Exec(ctx); updateErr != nil {
+				log.Error().Err(updateErr).Msg("Failed to update user login provider")
+				return nil, utils.ErrInternalServerError("Unable to sign in")
+			}
+		}
+		return user, nil
+	}
+	if err != sql.ErrNoRows {
+		log.Error().Err(err).Msg("Failed to find OTP user")
+		return nil, utils.ErrInternalServerError("Unable to sign in")
+	}
+
+	user = &User{
+		Name:      displayNameFromEmail(email),
+		Email:     email,
+		Provider:  "email_otp",
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-
 	if _, err := s.db.NewInsert().Model(user).Exec(ctx); err != nil {
-		return nil, utils.ErrInternalServerError("Failed to create user account")
+		log.Error().Err(err).Msg("Failed to create OTP user")
+		return nil, utils.ErrInternalServerError("Unable to sign in")
 	}
-
-	return s.createSession(ctx, user, true, ip, ua)
+	return user, nil
 }
 
-func (s *AuthService) Login(ctx context.Context, req *LoginRequest, ip, ua string) (*AuthResult, error) {
-	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
-	if cleanEmail == "" || strings.TrimSpace(req.Password) == "" {
-		return nil, utils.ErrBadRequest("Email and password are required")
+func displayNameFromEmail(email string) string {
+	localPart := strings.SplitN(email, "@", 2)[0]
+	parts := strings.FieldsFunc(localPart, func(character rune) bool {
+		return character == '.' || character == '_' || character == '-'
+	})
+	for index, part := range parts {
+		runes := []rune(strings.ToLower(part))
+		if len(runes) > 0 {
+			runes[0] = unicode.ToUpper(runes[0])
+			parts[index] = string(runes)
+		}
 	}
-
-	user := new(User)
-	err := s.db.NewSelect().
-		Model(user).
-		Where("LOWER(email) = ?", cleanEmail).
-		Scan(ctx)
-	if err != nil {
-		return nil, utils.ErrUnauthorized("Invalid email or password")
+	name := strings.TrimSpace(strings.Join(parts, " "))
+	if name == "" {
+		return "Magic Converter User"
 	}
-
-	if user.Password == nil || *user.Password == "" {
-		return nil, utils.ErrUnauthorized("This account was registered with Google. Please use Google Sign In.")
-	}
-
-	if err := utils.CheckPassword(*user.Password, req.Password); err != nil {
-		return nil, utils.ErrUnauthorized("Invalid email or password")
-	}
-
-	return s.createSession(ctx, user, req.RememberMe, ip, ua)
+	return name
 }
 
-func (s *AuthService) GoogleAuth(ctx context.Context, req *GoogleAuthRequest, ip, ua string) (*AuthResult, error) {
-	cleanEmail := strings.ToLower(strings.TrimSpace(req.Email))
-
-	user := new(User)
-	err := s.db.NewSelect().
-		Model(user).
-		Where("LOWER(email) = ?", cleanEmail).
-		Scan(ctx)
-
-	now := time.Now()
-	if err != nil {
-		// New user from Google
-		user = &User{
-			Name:      strings.TrimSpace(req.Name),
-			Email:     cleanEmail,
-			Provider:  "google",
-			CreatedAt: now,
-			UpdatedAt: now,
-		}
-		if _, err := s.db.NewInsert().Model(user).Exec(ctx); err != nil {
-			return nil, utils.ErrInternalServerError("Failed to create Google user account")
-		}
-	} else {
-		// Existing user
-		user.UpdatedAt = now
-		if _, err := s.db.NewUpdate().Model(user).WherePK().Exec(ctx); err != nil {
-			return nil, utils.ErrInternalServerError("Failed to update user profile")
-		}
-	}
-
-	return s.createSession(ctx, user, req.RememberMe, ip, ua)
-}
-
-func (s *AuthService) createSession(ctx context.Context, user *User, rememberMe bool, ip, ua string) (*AuthResult, error) {
+func (s *AuthService) createSession(ctx context.Context, user *User, rememberMe bool, ip, userAgent string) (*AuthResult, error) {
 	accessToken, err := generateSecureToken(32)
 	if err != nil {
 		return nil, utils.ErrInternalServerError("Failed to generate access token")
 	}
-
 	refreshToken, err := generateSecureToken(32)
 	if err != nil {
 		return nil, utils.ErrInternalServerError("Failed to generate refresh token")
@@ -294,7 +295,6 @@ func (s *AuthService) createSession(ctx context.Context, user *User, rememberMe 
 	now := time.Now()
 	accessExpires := now.Add(AccessTokenDuration)
 	refreshExpires := now.Add(RefreshTokenDuration)
-
 	session := &Session{
 		UserID:                user.ID,
 		AccessToken:           accessToken,
@@ -303,14 +303,13 @@ func (s *AuthService) createSession(ctx context.Context, user *User, rememberMe 
 		RefreshTokenExpiresAt: refreshExpires,
 		RememberMe:            rememberMe,
 		IPAddress:             &ip,
-		UserAgent:             &ua,
-		IsRevoked:             false,
+		UserAgent:             &userAgent,
 		CreatedAt:             now,
 		UpdatedAt:             now,
 	}
-
 	if _, err := s.db.NewInsert().Model(session).Exec(ctx); err != nil {
-		return nil, utils.ErrInternalServerError("Failed to persist session")
+		log.Error().Err(err).Msg("Failed to persist session")
+		return nil, utils.ErrInternalServerError("Failed to create session")
 	}
 
 	return &AuthResult{
@@ -323,16 +322,15 @@ func (s *AuthService) createSession(ctx context.Context, user *User, rememberMe 
 	}, nil
 }
 
-func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string, ip, ua string) (*AuthResult, error) {
-	if refreshTokenStr == "" {
+func (s *AuthService) RefreshToken(ctx context.Context, refreshToken string, ip, userAgent string) (*AuthResult, error) {
+	if refreshToken == "" {
 		return nil, utils.ErrUnauthorized("Refresh token is required")
 	}
 
 	session := new(Session)
-	err := s.db.NewSelect().
-		Model(session).
+	err := s.db.NewSelect().Model(session).
 		Relation("User").
-		Where("s.refresh_token = ?", refreshTokenStr).
+		Where("s.refresh_token = ?", refreshToken).
 		Where("s.is_revoked = false").
 		Scan(ctx)
 	if err != nil {
@@ -344,40 +342,31 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string, 
 		session.IsRevoked = true
 		session.UpdatedAt = now
 		_, _ = s.db.NewUpdate().Model(session).Column("is_revoked", "updated_at").WherePK().Exec(ctx)
-		return nil, utils.ErrUnauthorized("Refresh token has expired, please log in again")
+		return nil, utils.ErrUnauthorized("Session has expired, please sign in again")
 	}
 
-	// Generate new access token (valid for 1 week)
 	newAccessToken, err := generateSecureToken(32)
 	if err != nil {
 		return nil, utils.ErrInternalServerError("Failed to generate access token")
 	}
-	newAccessExpires := now.Add(AccessTokenDuration)
-
 	session.AccessToken = newAccessToken
-	session.AccessTokenExpiresAt = newAccessExpires
+	session.AccessTokenExpiresAt = now.Add(AccessTokenDuration)
 	session.UpdatedAt = now
 	session.IPAddress = &ip
-	session.UserAgent = &ua
-
-	// Remember Me logic:
-	// If remember_me == true, refresh token expiry is also extended by 30 days!
-	// If remember_me == false, refresh token expiry remains unchanged.
+	session.UserAgent = &userAgent
 	if session.RememberMe {
 		session.RefreshTokenExpiresAt = now.Add(RefreshTokenDuration)
 	}
 
-	columnsToUpdate := []string{
+	if _, err := s.db.NewUpdate().Model(session).Column(
 		"access_token",
 		"access_token_expires_at",
 		"refresh_token_expires_at",
 		"ip_address",
 		"user_agent",
 		"updated_at",
-	}
-
-	if _, err := s.db.NewUpdate().Model(session).Column(columnsToUpdate...).WherePK().Exec(ctx); err != nil {
-		return nil, utils.ErrInternalServerError("Failed to update session tokens")
+	).WherePK().Exec(ctx); err != nil {
+		return nil, utils.ErrInternalServerError("Failed to update session")
 	}
 
 	return &AuthResult{
@@ -390,41 +379,33 @@ func (s *AuthService) RefreshToken(ctx context.Context, refreshTokenStr string, 
 	}, nil
 }
 
-func (s *AuthService) GetSessionByAccessToken(ctx context.Context, accessTokenStr string) (*Session, error) {
-	if accessTokenStr == "" {
+func (s *AuthService) GetSessionByAccessToken(ctx context.Context, accessToken string) (*Session, error) {
+	if accessToken == "" {
 		return nil, utils.ErrUnauthorized("Access token required")
 	}
 
 	session := new(Session)
-	err := s.db.NewSelect().
-		Model(session).
+	err := s.db.NewSelect().Model(session).
 		Relation("User").
-		Where("s.access_token = ?", accessTokenStr).
+		Where("s.access_token = ?", accessToken).
 		Where("s.is_revoked = false").
 		Scan(ctx)
 	if err != nil {
 		return nil, utils.ErrUnauthorized("Invalid session")
 	}
-
 	return session, nil
 }
 
-func (s *AuthService) Logout(ctx context.Context, accessTokenStr, refreshTokenStr string) error {
-	query := s.db.NewUpdate().
-		Model((*Session)(nil)).
+func (s *AuthService) Logout(ctx context.Context, accessToken, refreshToken string) error {
+	query := s.db.NewUpdate().Model((*Session)(nil)).
 		Set("is_revoked = true").
 		Set("updated_at = ?", time.Now())
 
-	hasCondition := false
-	if accessTokenStr != "" {
-		query = query.Where("access_token = ?", accessTokenStr)
-		hasCondition = true
-	} else if refreshTokenStr != "" {
-		query = query.Where("refresh_token = ?", refreshTokenStr)
-		hasCondition = true
-	}
-
-	if !hasCondition {
+	if accessToken != "" {
+		query = query.Where("access_token = ?", accessToken)
+	} else if refreshToken != "" {
+		query = query.Where("refresh_token = ?", refreshToken)
+	} else {
 		return nil
 	}
 
@@ -434,11 +415,7 @@ func (s *AuthService) Logout(ctx context.Context, accessTokenStr, refreshTokenSt
 
 func (s *AuthService) GetUserByID(ctx context.Context, id uuid.UUID) (*UserResponse, error) {
 	user := new(User)
-	err := s.db.NewSelect().
-		Model(user).
-		Where("id = ?", id).
-		Scan(ctx)
-	if err != nil {
+	if err := s.db.NewSelect().Model(user).Where("id = ?", id).Scan(ctx); err != nil {
 		return nil, utils.ErrNotFound("User not found")
 	}
 	return ToUserResponse(user), nil

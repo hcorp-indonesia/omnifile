@@ -106,24 +106,49 @@ magic-converter/
 | `POST`   | `/api/v1/converters`    | Create new converter  |
 | `PUT`    | `/api/v1/converters/:id`| Update converter      |
 | `DELETE` | `/api/v1/converters/:id`| Delete converter      |
-| `POST`   | `/api/v1/auth/password-reset/request` | Request a password reset magic link |
-| `POST`   | `/api/v1/auth/password-reset/confirm` | Set a new password using the magic-link token |
+| `POST`   | `/api/v1/auth/request-otp` | Send a one-time login code by email |
+| `POST`   | `/api/v1/auth/verify-otp` | Verify the code and create a session |
 | `GET`    | `/livez`                | Health check          |
 
-### SMTP Password Reset Setup
+### Passwordless Email Login
 
-Password reset uses a single-use expiring token sent through SMTP with TLS. Configure these variables in the local `.env` file (never commit them):
+Users sign in with a six-digit, single-use email code. There is no registration
+or password. A user record is created automatically after the first successful
+verification. Configure these variables in `.env` or Dokploy:
 
 ```env
-FRONTEND_URL=https://your-frontend-domain.example
 SMTP_HOST=smtp.resend.com
 SMTP_PORT=465
 SMTP_USERNAME=resend
 SMTP_PASSWORD=your-resend-api-key
 SMTP_FROM=Magic Converter <noreply@email.raishannan.com>
+OTP_SECRET=replace-with-a-long-random-secret
 ```
 
-The sending domain must be verified in Resend and its SPF/DKIM DNS records must be active. Reset links expire after 15 minutes, are invalidated after use, and revoke existing sessions after a successful password change.
+The sending domain must be verified in Resend and its SPF/DKIM records must be
+active. Login codes expire after 10 minutes, can only be used once, allow at
+most five attempts, and can be requested once per minute per email address.
+
+---
+
+## Dokploy Deployment
+
+The production Compose stack runs one application container only. PostgreSQL,
+Dragonfly/Redis, SMTP, PDF.co, and S3-compatible storage are expected to exist
+outside this stack.
+
+1. Create a **Compose** application in Dokploy and select this repository.
+2. Use `docker-compose.yml` from the repository root.
+3. Copy the variables from `.env.dokploy.example` into Dokploy's Environment
+   section and replace every placeholder.
+4. Attach the application domain to service `app` on container port `8000`.
+5. Deploy. The container runs pending database migrations before starting the
+   API unless `RUN_MIGRATIONS=false` is configured.
+
+The React frontend and Go API are served from the same domain. The persistent
+`model_cache` volume stores downloaded remove-background model files between
+deployments. No PostgreSQL, Redis/Dragonfly, or object-storage container is
+created by this Compose file.
 
 ---
 

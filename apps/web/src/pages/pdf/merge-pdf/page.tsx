@@ -160,8 +160,6 @@ export default function MergePdfPage() {
     toast.success("Download started!");
   };
 
-  const totalBytes = items.reduce((acc, curr) => acc + curr.size, 0);
-
   return (
     <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "py-4")}>
       {/* Header Navigation & Reset */}

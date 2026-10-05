@@ -13,8 +13,7 @@ type User struct {
 	ID        uuid.UUID  `bun:"type:uuid,pk,default:gen_random_uuid()" json:"id"`
 	Name      string     `bun:"name,notnull" json:"name"`
 	Email     string     `bun:"email,notnull,unique" json:"email"`
-	Password  *string    `bun:"password" json:"-"`
-	Provider  string     `bun:"provider,notnull,default:'local'" json:"provider"`
+	Provider  string     `bun:"provider,notnull,default:'email_otp'" json:"provider"`
 	CreatedAt time.Time  `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 	UpdatedAt time.Time  `bun:"updated_at,nullzero,notnull,default:current_timestamp" json:"updated_at"`
 	DeletedAt *time.Time `bun:"deleted_at,soft_delete" json:"-"`
@@ -38,44 +37,32 @@ type Session struct {
 	UpdatedAt             time.Time `bun:"updated_at,nullzero,notnull,default:current_timestamp" json:"updated_at"`
 }
 
-type PasswordResetToken struct {
-	bun.BaseModel `bun:"table:password_reset_tokens,alias:prt"`
+type LoginOTP struct {
+	bun.BaseModel `bun:"table:login_otps,alias:lo"`
 
-	ID        uuid.UUID  `bun:"type:uuid,pk,default:gen_random_uuid()" json:"id"`
-	UserID    uuid.UUID  `bun:"user_id,type:uuid,notnull" json:"user_id"`
-	Token     string     `bun:"token,notnull,unique" json:"-"`
-	ExpiresAt time.Time  `bun:"expires_at,notnull" json:"expires_at"`
-	UsedAt    *time.Time `bun:"used_at" json:"-"`
-	CreatedAt time.Time  `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
+	ID          uuid.UUID  `bun:"type:uuid,pk,default:gen_random_uuid()" json:"id"`
+	Email       string     `bun:"email,notnull" json:"email"`
+	CodeDigest  string     `bun:"code_digest,notnull" json:"-"`
+	ExpiresAt   time.Time  `bun:"expires_at,notnull" json:"expires_at"`
+	Attempts    int        `bun:"attempts,notnull,default:0" json:"-"`
+	UsedAt      *time.Time `bun:"used_at" json:"-"`
+	RequestedIP *string    `bun:"requested_ip" json:"-"`
+	CreatedAt   time.Time  `bun:"created_at,nullzero,notnull,default:current_timestamp" json:"created_at"`
 }
 
-type RegisterRequest struct {
-	Name            string `json:"name" validate:"required,min=2,max=100"`
-	Email           string `json:"email" validate:"required,email"`
-	Password        string `json:"password" validate:"required"`
-	ConfirmPassword string `json:"confirm_password" validate:"required"`
-}
-
-type LoginRequest struct {
-	Email      string `json:"email" validate:"required,email"`
-	Password   string `json:"password" validate:"required"`
-	RememberMe bool   `json:"remember_me"`
-}
-
-type GoogleAuthRequest struct {
-	Email      string `json:"email" validate:"required,email"`
-	Name       string `json:"name" validate:"required"`
-	RememberMe bool   `json:"remember_me"`
-}
-
-type RequestPasswordResetRequest struct {
+type RequestLoginOTPRequest struct {
 	Email string `json:"email" validate:"required,email"`
 }
 
-type ResetPasswordRequest struct {
-	Token           string `json:"token" validate:"required"`
-	NewPassword     string `json:"new_password" validate:"required"`
-	ConfirmPassword string `json:"confirm_password" validate:"required"`
+type VerifyLoginOTPRequest struct {
+	Email string `json:"email" validate:"required,email"`
+	Code  string `json:"code" validate:"required,len=6,numeric"`
+}
+
+type RequestLoginOTPResult struct {
+	Email             string `json:"email"`
+	ExpiresInSeconds  int    `json:"expires_in_seconds"`
+	ResendAfterSecond int    `json:"resend_after_seconds"`
 }
 
 type UserResponse struct {
@@ -85,15 +72,15 @@ type UserResponse struct {
 	Provider string    `json:"provider"`
 }
 
-func ToUserResponse(u *User) *UserResponse {
-	if u == nil {
+func ToUserResponse(user *User) *UserResponse {
+	if user == nil {
 		return nil
 	}
 	return &UserResponse{
-		ID:       u.ID,
-		Name:     u.Name,
-		Email:    u.Email,
-		Provider: u.Provider,
+		ID:       user.ID,
+		Name:     user.Name,
+		Email:    user.Email,
+		Provider: user.Provider,
 	}
 }
 
@@ -101,7 +88,7 @@ type AuthResult struct {
 	User                  *UserResponse `json:"user"`
 	AccessToken           string        `json:"access_token"`
 	RefreshToken          string        `json:"refresh_token"`
-	AccessTokenExpiresAt  int64         `json:"access_token_expires_at"`  // Unix timestamp (seconds)
-	RefreshTokenExpiresAt int64         `json:"refresh_token_expires_at"` // Unix timestamp (seconds)
+	AccessTokenExpiresAt  int64         `json:"access_token_expires_at"`
+	RefreshTokenExpiresAt int64         `json:"refresh_token_expires_at"`
 	RememberMe            bool          `json:"remember_me"`
 }

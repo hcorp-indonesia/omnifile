@@ -1,25 +1,26 @@
+import { Input } from "@/components/ui/input";
+import { OTPInput } from "@/components/ui/otp-input";
+import {
+  useRequestLoginOTPMutation,
+  useVerifyLoginOTPMutation,
+} from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import { CheckCircle2, Eye, EyeOff } from "lucide-react";
-import React, { useEffect, useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router-dom";
-
-import { useGoogleAuthMutation, useLoginMutation } from "@/hooks/use-auth";
 import { useAuthStore } from "@/store/auth-store";
+import { ArrowLeft } from "lucide-react";
+import { useEffect, useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
+
+type LoginStep = "email" | "otp";
 
 export default function LoginPage() {
-  const location = useLocation();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
-
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const loginMutation = useLoginMutation();
-  const googleAuthMutation = useGoogleAuthMutation();
-
-  const isLoading = loginMutation.isPending;
-  const isGoogleLoading = googleAuthMutation.isPending;
+  const [step, setStep] = useState<LoginStep>("email");
+  const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
+  const [resendAfter, setResendAfter] = useState(0);
+  const requestOTPMutation = useRequestLoginOTPMutation();
+  const verifyOTPMutation = useVerifyLoginOTPMutation();
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -27,516 +28,228 @@ export default function LoginPage() {
     }
   }, [isAuthenticated, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  useEffect(() => {
+    if (resendAfter <= 0) return;
+    const timer = window.setInterval(() => {
+      setResendAfter((seconds) => Math.max(0, seconds - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [resendAfter]);
 
-    loginMutation.mutate(
+  const requestOTP = (onSuccess?: () => void) => {
+    requestOTPMutation.mutate(
+      { email: email.trim().toLowerCase() },
       {
-        email,
-        password,
-        remember_me: rememberMe,
-      },
-      {
-        onSuccess: () => {
-          navigate("/dashboard");
+        onSuccess: (response) => {
+          setEmail(response.data?.email || email.trim().toLowerCase());
+          setResendAfter(response.data?.resend_after_seconds || 60);
+          onSuccess?.();
         },
       },
     );
   };
 
-  const handleGoogleLogin = () => {
-    googleAuthMutation.mutate(
-      {
-        email: "google.user@gmail.com",
-        name: "Google Explorer",
-        remember_me: rememberMe,
-      },
-      {
-        onSuccess: () => {
-          navigate("/dashboard");
-        },
-      },
+  const handleEmailSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    requestOTP(() => {
+      setStep("otp");
+      setCode("");
+    });
+  };
+
+  const handleOTPSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    verifyOTPMutation.mutate(
+      { email, code },
+      { onSuccess: () => navigate("/dashboard", { replace: true }) },
     );
   };
 
   return (
-    <div
-      className={cn(
-        "relative",
-        "flex",
-        "items-center",
-        "justify-center",
-        "min-h-[calc(100vh-140px)]",
-        "py-10",
-        "px-4",
-      )}
-    >
-      {/* Decorative Background Accents */}
+    <div className={cn("relative", "w-full", "max-w-md", "py-6")}>
       <div
         aria-hidden="true"
         className={cn(
           "absolute",
-          "inset-0",
-          "pointer-events-none",
+          "-left-8",
+          "-top-5",
+          "h-24",
+          "w-24",
+          "rotate-6",
+          "rounded-3xl",
+          "border-3",
+          "border-gray-900",
+          "bg-yellow-300",
+          "dark:border-gray-700",
+          "dark:bg-yellow-500",
+        )}
+      />
+      <div
+        aria-hidden="true"
+        className={cn(
+          "absolute",
+          "-bottom-4",
+          "-right-5",
+          "h-20",
+          "w-20",
+          "-rotate-12",
+          "rounded-full",
+          "border-3",
+          "border-gray-900",
+          "bg-emerald-300",
+          "dark:border-gray-700",
+          "dark:bg-emerald-500",
+        )}
+      />
+
+      <section
+        className={cn(
+          "relative",
           "overflow-hidden",
-          "-z-10",
+          "rounded-3xl",
+          "border-3",
+          "border-gray-900",
+          "bg-white",
+          "p-7",
+          "shadow-[8px_8px_0_0_#111827]",
+          "sm:p-9",
+          "dark:border-gray-700",
+          "dark:bg-[#16181d]",
+          "dark:shadow-[8px_8px_0_0_#000]",
         )}
       >
-        <div
+        <h1
           className={cn(
-            "absolute",
-            "top-1/4",
-            "-left-20",
-            "w-72",
-            "h-72",
-            "rounded-full",
-            "bg-yellow-300/15",
-            "dark:bg-yellow-500/10",
-            "blur-3xl",
-          )}
-        />
-        <div
-          className={cn(
-            "absolute",
-            "bottom-1/4",
-            "-right-20",
-            "w-72",
-            "h-72",
-            "rounded-full",
-            "bg-purple-400/15",
-            "dark:bg-purple-600/10",
-            "blur-3xl",
-          )}
-        />
-      </div>
-
-      <div className={cn("w-full", "max-w-md")}>
-        {/* Main Card (Neobrutalism Pro Max) */}
-        <div
-          className={cn(
-            "relative",
-            "bg-white",
-            "dark:bg-[#16181d]",
-            "border-3",
-            "border-gray-900",
-            "dark:border-gray-700",
-            "rounded-3xl",
-            "p-6",
-            "sm:p-9",
-            "shadow-[8px_8px_0_0_#111827]",
-            "dark:shadow-[8px_8px_0_0_#000]",
-            "transition-all",
+            "text-3xl",
+            "font-black",
+            "tracking-tight",
+            "text-gray-900",
+            "dark:text-white",
           )}
         >
-          <h1
-            className={cn(
-              "text-3xl",
-              "sm:text-4xl",
-              "font-bold",
-              "text-gray-900",
-              "dark:text-white",
-              "tracking-tight",
-            )}
-          >
-            Login to Account
-          </h1>
-          <p
-            className={cn(
-              "mt-2",
-              "text-sm",
-              "font-semibold",
-              "text-gray-600",
-              "dark:text-gray-400",
-            )}
-          >
-            Access all powerful file & media tools without limits.
-          </p>
+          {step === "email" ? "Sign in" : "Check your inbox"}
+        </h1>
 
-          {/* Google Login Button */}
-          <div className={cn("mt-6")}>
-            <button
-              type="button"
-              onClick={handleGoogleLogin}
-              disabled={isGoogleLoading || isLoading}
-              className={cn(
-                "w-full",
-                "flex",
-                "items-center",
-                "justify-center",
-                "gap-3",
-                "py-3.5",
-                "px-5",
-                "rounded-2xl",
-                "border-3",
-                "border-gray-900",
-                "dark:border-gray-700",
-                "bg-white",
-                "dark:bg-[#1f2229]",
-                "font-bold",
-                "text-sm",
-                "text-gray-900",
-                "dark:text-white",
-                "shadow-[4px_4px_0_0_#111827]",
-                "dark:shadow-[4px_4px_0_0_#000]",
-                "hover:-translate-y-1",
-                "hover:shadow-[6px_6px_0_0_#111827]",
-                "dark:hover:shadow-[6px_6px_0_0_#000]",
-                "active:translate-y-0",
-                "active:shadow-[2px_2px_0_0_#111827]",
-                "transition-all",
-                "duration-150",
-                "disabled:opacity-60",
-                "disabled:pointer-events-none",
-                "cursor-pointer",
-              )}
-            >
-              {isGoogleLoading ? (
-                <div
-                  className={cn(
-                    "w-5",
-                    "h-5",
-                    "border-2",
-                    "border-gray-900",
-                    "border-t-transparent",
-                    "rounded-full",
-                    "animate-spin",
-                  )}
-                />
-              ) : (
-                <svg
-                  className={cn("w-5", "h-5", "shrink-0")}
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    fill="#4285F4"
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                  />
-                </svg>
-              )}
-              <span>Continue with Google</span>
-            </button>
-          </div>
-
-          {/* Divider */}
-          <div
-            className={cn(
-              "relative",
-              "flex",
-              "items-center",
-              "justify-center",
-              "my-6",
-            )}
+        {step === "email" ? (
+          <form
+            onSubmit={handleEmailSubmit}
+            className={cn("mt-7", "space-y-5")}
           >
-            <div
-              className={cn(
-                "w-full",
-                "border-t-2",
-                "border-dashed",
-                "border-gray-300",
-                "dark:border-gray-700",
-              )}
+            <Input
+              id="login-email"
+              type="email"
+              label="Email"
+              autoComplete="email"
+              autoFocus
+              required
+              value={email}
+              onChange={(event) => setEmail(event.target.value)}
+              placeholder="name@example.com"
+              labelClassName={cn("font-black")}
             />
-            <span
-              className={cn(
-                "absolute",
-                "bg-white",
-                "dark:bg-[#16181d]",
-                "px-3",
-                "text-xs",
-                "font-bold",
-                "uppercase",
-                "tracking-wider",
-                "text-gray-500",
-                "dark:text-gray-400",
-              )}
-            >
-              or with email
-            </span>
-          </div>
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className={cn("mt-6", "space-y-4")}>
-            {/* Email Field */}
-            <div className={cn("space-y-1.5")}>
-              <label
-                htmlFor="login-email"
-                className={cn(
-                  "block",
-                  "text-xs",
-                  "font-bold",
-                  "uppercase",
-                  "tracking-wider",
-                  "text-gray-900",
-                  "dark:text-gray-200",
-                )}
-              >
-                Email
-              </label>
-              <input
-                id="login-email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className={cn(
-                  "w-full",
-                  "py-3.5",
-                  "px-4.5",
-                  "rounded-2xl",
-                  "border-3",
-                  "border-gray-900",
-                  "dark:border-gray-700",
-                  "bg-gray-50",
-                  "dark:bg-[#1e222a]",
-                  "text-sm",
-                  "font-semibold",
-                  "text-gray-900",
-                  "dark:text-white",
-                  "placeholder:text-gray-400",
-                  "focus:outline-none",
-                  "focus:bg-white",
-                  "dark:focus:bg-[#252932]",
-                  "focus:border-gray-900",
-                  "focus:ring-2",
-                  "focus:ring-yellow-400",
-                  "transition-all",
-                )}
-              />
-            </div>
-
-            {/* Password Field */}
-            <div className={cn("space-y-1.5")}>
-              <div className={cn("flex", "items-center", "justify-between")}>
-                <label
-                  htmlFor="login-password"
-                  className={cn(
-                    "block",
-                    "text-xs",
-                    "font-bold",
-                    "uppercase",
-                    "tracking-wider",
-                    "text-gray-900",
-                    "dark:text-gray-200",
-                  )}
-                >
-                  Password
-                </label>
-                <Link
-                  to="/forgot-password"
-                  state={location.state}
-                  className={cn(
-                    "text-xs",
-                    "font-bold",
-                    "text-purple-600",
-                    "dark:text-purple-400",
-                    "hover:underline",
-                  )}
-                >
-                  Forgot password?
-                </Link>
-              </div>
-              <div className={cn("relative")}>
-                <input
-                  id="login-password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  className={cn(
-                    "w-full",
-                    "py-3.5",
-                    "pl-4.5",
-                    "pr-12",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-gray-900",
-                    "dark:border-gray-700",
-                    "bg-gray-50",
-                    "dark:bg-[#1e222a]",
-                    "text-sm",
-                    "font-semibold",
-                    "text-gray-900",
-                    "dark:text-white",
-                    "placeholder:text-gray-400",
-                    "focus:outline-none",
-                    "focus:bg-white",
-                    "dark:focus:bg-[#252932]",
-                    "focus:border-gray-900",
-                    "focus:ring-2",
-                    "focus:ring-yellow-400",
-                    "transition-all",
-                  )}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className={cn(
-                    "absolute",
-                    "right-4",
-                    "top-1/2",
-                    "-translate-y-1/2",
-                    "text-gray-400",
-                    "hover:text-gray-700",
-                    "dark:hover:text-gray-200",
-                    "transition-colors",
-                  )}
-                >
-                  {showPassword ? (
-                    <EyeOff className={cn("w-5", "h-5")} />
-                  ) : (
-                    <Eye className={cn("w-5", "h-5")} />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            {/* Remember Me Checkbox */}
-            <div className={cn("flex", "items-center", "gap-2.5", "pt-1")}>
-              <button
-                type="button"
-                onClick={() => setRememberMe(!rememberMe)}
-                className={cn(
-                  "w-5",
-                  "h-5",
-                  "rounded-md",
-                  "border-2",
-                  "border-gray-900",
-                  "dark:border-gray-600",
-                  "flex",
-                  "items-center",
-                  "justify-center",
-                  "transition-all",
-                  rememberMe
-                    ? "bg-yellow-400 dark:bg-yellow-400 text-gray-900"
-                    : "bg-white dark:bg-[#1a1c22]",
-                )}
-              >
-                {rememberMe && (
-                  <CheckCircle2 className={cn("w-4", "h-4", "stroke-3")} />
-                )}
-              </button>
-              <span
-                onClick={() => setRememberMe(!rememberMe)}
-                className={cn(
-                  "text-xs",
-                  "font-bold",
-                  "text-gray-700",
-                  "dark:text-gray-300",
-                  "cursor-pointer",
-                  "select-none",
-                  "leading-none",
-                  "translate-y-px",
-                )}
-              >
-                Remember me
-              </span>
-            </div>
-
-            {/* Submit Button */}
             <button
               type="submit"
-              disabled={isLoading || isGoogleLoading}
+              disabled={requestOTPMutation.isPending}
               className={cn(
                 "w-full",
-                "flex",
-                "items-center",
-                "justify-center",
-                "gap-2",
-                "py-3.5",
-                "px-6",
                 "rounded-2xl",
                 "border-3",
                 "border-gray-900",
-                "dark:border-gray-700",
                 "bg-yellow-400",
-                "hover:bg-yellow-500",
-                "font-bold",
-                "text-sm",
+                "px-6",
+                "py-3.5",
+                "font-black",
                 "text-gray-900",
                 "shadow-[4px_4px_0_0_#111827]",
-                "dark:shadow-[4px_4px_0_0_#000]",
-                "hover:-translate-y-1",
-                "hover:shadow-[6px_6px_0_0_#111827]",
-                "dark:hover:shadow-[6px_6px_0_0_#000]",
-                "active:translate-y-0",
-                "active:shadow-[2px_2px_0_0_#111827]",
                 "transition-all",
-                "duration-150",
-                "disabled:opacity-60",
+                "hover:-translate-y-1",
+                "hover:bg-yellow-300",
+                "hover:shadow-[6px_6px_0_0_#111827]",
+                "active:translate-y-0",
                 "disabled:pointer-events-none",
-                "mt-2",
-                "cursor-pointer",
+                "disabled:opacity-60",
               )}
             >
-              {isLoading ? (
-                <div
-                  className={cn(
-                    "w-5",
-                    "h-5",
-                    "border-3",
-                    "border-gray-900",
-                    "border-t-transparent",
-                    "rounded-full",
-                    "animate-spin",
-                  )}
-                />
-              ) : (
-                <>
-                  <span>Login</span>
-                </>
-              )}
+              {requestOTPMutation.isPending ? "Sending code..." : "Send"}
             </button>
           </form>
-
-          {/* Switch to Register */}
-          <div
-            className={cn(
-              "mt-6",
-              "text-center",
-              "pt-4",
-              "border-t-2",
-              "border-gray-100",
-              "dark:border-gray-800",
-            )}
-          >
-            <p
+        ) : (
+          <form onSubmit={handleOTPSubmit} className={cn("mt-7", "space-y-5")}>
+            <OTPInput
+              value={code}
+              onChange={setCode}
+              disabled={verifyOTPMutation.isPending}
+              autoFocus
+            />
+            <button
+              type="submit"
+              disabled={verifyOTPMutation.isPending || code.length !== 6}
               className={cn(
-                "text-xs",
-                "font-bold",
-                "text-gray-600",
-                "dark:text-gray-400",
+                "w-full",
+                "rounded-2xl",
+                "border-3",
+                "border-gray-900",
+                "bg-purple-400",
+                "px-6",
+                "py-3.5",
+                "font-black",
+                "text-gray-900",
+                "shadow-[4px_4px_0_0_#111827]",
+                "transition-all",
+                "hover:-translate-y-1",
+                "hover:bg-purple-300",
+                "hover:shadow-[6px_6px_0_0_#111827]",
+                "active:translate-y-0",
+                "disabled:pointer-events-none",
+                "disabled:opacity-60",
               )}
             >
-              Don't have an account?{" "}
-              <Link
-                to="/register"
-                state={location.state}
+              {verifyOTPMutation.isPending ? "Verifying..." : "Verify"}
+            </button>
+            <div
+              className={cn("flex", "items-center", "justify-between", "gap-3")}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setStep("email");
+                  setCode("");
+                }}
                 className={cn(
-                  "text-purple-600",
-                  "dark:text-purple-400",
-                  "hover:underline",
-                  "font-extrabold",
-                  "ml-1",
+                  "inline-flex",
+                  "items-center",
+                  "gap-1.5",
+                  "text-xs",
+                  "font-bold",
+                  "text-gray-600",
+                  "hover:text-gray-900",
+                  "dark:text-gray-400",
+                  "dark:hover:text-white",
                 )}
               >
-                Sign Up
-              </Link>
-            </p>
-          </div>
-        </div>
-      </div>
+                <ArrowLeft className={cn("h-4", "w-4")} />
+                back
+              </button>
+              <button
+                type="button"
+                disabled={resendAfter > 0 || requestOTPMutation.isPending}
+                onClick={() => requestOTP()}
+                className={cn(
+                  "text-xs",
+                  "font-black",
+                  "text-purple-700",
+                  "hover:underline",
+                  "disabled:text-gray-400",
+                  "disabled:no-underline",
+                  "dark:text-purple-300",
+                )}
+              >
+                {resendAfter > 0 ? `Resend in ${resendAfter}s` : "Resend code"}
+              </button>
+            </div>
+          </form>
+        )}
+      </section>
     </div>
   );
 }

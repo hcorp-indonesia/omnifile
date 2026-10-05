@@ -38,6 +38,7 @@ var (
 	ErrForbidden           = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusForbidden, msg) }
 	ErrNotFound            = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusNotFound, msg) }
 	ErrConflict            = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusConflict, msg) }
+	ErrTooManyRequests     = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusTooManyRequests, msg) }
 	ErrPaymentRequired     = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusPaymentRequired, msg) }
 	ErrInternalServerError = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusInternalServerError, msg) }
 	ErrUnprocessableEntity = func(msg string) *HTTPError { return NewHTTPError(fiber.StatusUnprocessableEntity, msg) }

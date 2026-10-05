@@ -1,12 +1,12 @@
-import { authService } from "@/service/auth-service";
-import { useAuthStore } from "@/store/auth-store";
-import type { GoogleAuthPayload, LoginPayload, RegisterPayload } from "@/types";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { toast } from "sonner";
+import { authService } from '@/service/auth-service';
+import { useAuthStore } from '@/store/auth-store';
+import type { RequestLoginOTPPayload, VerifyLoginOTPPayload } from '@/types';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 export const authKeys = {
-  all: ["auth"] as const,
-  me: () => [...authKeys.all, "me"] as const,
+  all: ['auth'] as const,
+  me: () => [...authKeys.all, 'me'] as const,
 };
 
 export function useCurrentUser() {
@@ -17,10 +17,10 @@ export function useCurrentUser() {
     queryKey: authKeys.me(),
     queryFn: async () => {
       try {
-        const res = await authService.me();
-        if (res.data) {
-          setUser(res.data);
-          return res.data;
+        const response = await authService.me();
+        if (response.data) {
+          setUser(response.data);
+          return response.data;
         }
         clearAuth();
         return null;
@@ -34,59 +34,33 @@ export function useCurrentUser() {
   });
 }
 
-export function useRegisterMutation() {
-  const queryClient = useQueryClient();
-  const setUser = useAuthStore((state) => state.setUser);
-
+export function useRequestLoginOTPMutation() {
   return useMutation({
-    mutationFn: (payload: RegisterPayload) => authService.register(payload),
-    onSuccess: (res) => {
-      if (res.data) {
-        setUser(res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success("Registration successful! Welcome to OmniFile.");
+    mutationFn: (payload: RequestLoginOTPPayload) => authService.requestLoginOTP(payload),
+    onSuccess: () => {
+      toast.success('A login code has been sent to your email.');
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'Unable to send the login code. Please try again.');
     },
   });
 }
 
-export function useLoginMutation() {
+export function useVerifyLoginOTPMutation() {
   const queryClient = useQueryClient();
   const setUser = useAuthStore((state) => state.setUser);
 
   return useMutation({
-    mutationFn: (payload: LoginPayload) => authService.login(payload),
-    onSuccess: (res) => {
-      if (res.data) {
-        setUser(res.data);
+    mutationFn: (payload: VerifyLoginOTPPayload) => authService.verifyLoginOTP(payload),
+    onSuccess: (response) => {
+      if (response.data) {
+        setUser(response.data);
       }
       queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success("Signed in successfully!");
+      toast.success('Signed in successfully.');
     },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
-    },
-  });
-}
-
-export function useGoogleAuthMutation() {
-  const queryClient = useQueryClient();
-  const setUser = useAuthStore((state) => state.setUser);
-
-  return useMutation({
-    mutationFn: (payload: GoogleAuthPayload) => authService.googleAuth(payload),
-    onSuccess: (res) => {
-      if (res.data) {
-        setUser(res.data);
-      }
-      queryClient.invalidateQueries({ queryKey: authKeys.all });
-      toast.success("Signed in with Google successfully!");
-    },
-    onError: (err: any) => {
-      toast.error(err.response?.data?.message || "Something went wrong. Please try again.");
+    onError: (error: any) => {
+      toast.error(error.response?.data?.message || 'The login code is invalid.');
     },
   });
 }
@@ -100,7 +74,7 @@ export function useLogoutMutation() {
     onSuccess: () => {
       clearAuth();
       queryClient.clear();
-      toast.success("Signed out successfully.");
+      toast.success('Signed out successfully.');
     },
     onError: () => {
       clearAuth();

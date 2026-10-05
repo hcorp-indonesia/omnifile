@@ -1,0 +1,15 @@
+.git
+.github
+.agents
+.venv
+.vscode
+node_modules
+apps/web/node_modules
+apps/web/dist
+models
+tools
+.env
+.env.*
+!.env.example
+*.log
+README.md

@@ -5,21 +5,17 @@ export interface User {
   provider: string;
 }
 
-export interface RegisterPayload {
-  name: string;
+export interface RequestLoginOTPPayload {
   email: string;
-  password: string;
-  confirm_password: string;
 }
 
-export interface LoginPayload {
+export interface VerifyLoginOTPPayload {
   email: string;
-  password: string;
-  remember_me: boolean;
+  code: string;
 }
 
-export interface GoogleAuthPayload {
+export interface RequestLoginOTPResult {
   email: string;
-  name: string;
-  remember_me: boolean;
+  expires_in_seconds: number;
+  resend_after_seconds: number;
 }
