@@ -4,6 +4,7 @@ import JSZip from 'jszip';
 export type SupportedImageFormat =
   | 'png'
   | 'jpg'
+  | 'jpeg'
   | 'webp'
   | 'avif'
   | 'bmp'
@@ -44,7 +45,6 @@ export interface ConvertImageResponse {
 }
 
 export interface RemoveBgOptions {
-  model?: 'u2netp' | 'u2net';
   output_format?: 'png' | 'webp';
   output_file_name?: string;
 }
@@ -59,8 +59,9 @@ export interface RemoveBgResult {
   original_height: number;
   result_width: number;
   result_height: number;
+  model_used: string;
   mime_type: string;
-  file_base64: string;
+  file_url: string;
 }
 
 export interface RemoveBgResponse {
@@ -70,7 +71,7 @@ export interface RemoveBgResponse {
 }
 
 export interface UpscaleOptions {
-  scale?: 2 | 4;
+  scale?: 1 | 2 | 4;
   output_format?: 'png' | 'jpg' | 'webp';
   output_file_name?: string;
   file_base64?: string;
@@ -87,7 +88,9 @@ export interface UpscaleResult {
   upscaled_width: number;
   upscaled_height: number;
   scale_factor: number;
+  processing_mode: string;
   mime_type: string;
+  file_url: string;
   file_base64: string;
 }
 
@@ -181,9 +184,6 @@ export async function removeBackgroundViaBackend(
   const formData = new FormData();
   formData.append('file', file);
 
-  if (options.model) {
-    formData.append('model', options.model);
-  }
   if (options.output_format) {
     formData.append('output_format', options.output_format);
   }
@@ -191,10 +191,11 @@ export async function removeBackgroundViaBackend(
     formData.append('output_file_name', options.output_file_name);
   }
 
-  const response = await api.post<RemoveBgResponse>('/image/remove-bg', formData, {
+  const response = await api.post<Blob>('/image/remove-bg', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
+    responseType: 'blob',
     onUploadProgress: (progressEvent) => {
       if (progressEvent.total && onProgress) {
         const percent = Math.round(
@@ -205,17 +206,33 @@ export async function removeBackgroundViaBackend(
     },
   });
 
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Failed to remove background');
-  }
-
-  return response.data.data;
+  const headers = response.headers;
+  const getHeader = (name: string) => headers[name] || headers[name.toLowerCase()];
+  const mimeType = getHeader('content-type') || 'image/png';
+  const fileName = decodeURIComponent(
+    (getHeader('content-disposition') || '').match(/filename="?([^";]+)"?/)?.[1] ||
+      'removed-background.png',
+  );
+  return {
+    file_name: fileName,
+    original_format: getHeader('x-remove-bg-original-format') || 'UNKNOWN',
+    converted_format: getHeader('x-remove-bg-converted-format') || mimeType,
+    original_size: Number(getHeader('x-remove-bg-original-size') || 0),
+    result_size: Number(getHeader('x-remove-bg-result-size') || response.data.size),
+    original_width: Number(getHeader('x-remove-bg-original-width') || 0),
+    original_height: Number(getHeader('x-remove-bg-original-height') || 0),
+    result_width: Number(getHeader('x-remove-bg-width') || 0),
+    result_height: Number(getHeader('x-remove-bg-height') || 0),
+    model_used: getHeader('x-remove-bg-model') || 'birefnet-general-lite',
+    mime_type: mimeType,
+    file_url: URL.createObjectURL(response.data),
+  };
 }
 
 export async function upscaleImageViaBackend(params: {
   file?: File;
   file_base64?: string;
-  scale?: 2 | 4;
+  scale?: 1 | 2 | 4;
   output_format?: 'png' | 'jpg' | 'webp';
   output_file_name?: string;
   onProgress?: (percent: number) => void;
@@ -227,10 +244,11 @@ export async function upscaleImageViaBackend(params: {
     if (params.output_format) formData.append('output_format', params.output_format);
     if (params.output_file_name) formData.append('output_file_name', params.output_file_name);
 
-    const response = await api.post<UpscaleResponse>('/image/upscale', formData, {
+    const response = await api.post<Blob>('/image/upscale', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      responseType: 'blob',
       onUploadProgress: (progressEvent) => {
         if (progressEvent.total && params.onProgress) {
           const percent = Math.round(
@@ -241,26 +259,41 @@ export async function upscaleImageViaBackend(params: {
       },
     });
 
-    if (!response.data.success || !response.data.data) {
-      throw new Error(response.data.message || 'Failed to upscale image');
-    }
-
-    return response.data.data;
+    const headers = response.headers;
+    const getHeader = (name: string) => headers[name] || headers[name.toLowerCase()];
+    const mimeType = getHeader('content-type') || 'image/webp';
+    const fileName = decodeURIComponent(
+      (getHeader('content-disposition') || '').match(/filename="?([^";]+)"?/)?.[1] ||
+        'upscaled-image.webp',
+    );
+    return {
+      file_name: fileName,
+      original_format: getHeader('x-upscale-original-format') || 'UNKNOWN',
+      converted_format: getHeader('x-upscale-converted-format') || mimeType,
+      original_size: Number(getHeader('x-upscale-original-size') || 0),
+      upscaled_size: Number(getHeader('x-upscale-upscaled-size') || response.data.size),
+      original_width: Number(getHeader('x-upscale-original-width') || 0),
+      original_height: Number(getHeader('x-upscale-original-height') || 0),
+      upscaled_width: Number(getHeader('x-upscale-width') || 0),
+      upscaled_height: Number(getHeader('x-upscale-height') || 0),
+      scale_factor: Number(getHeader('x-upscale-scale') || params.scale || 2),
+      processing_mode: getHeader('x-upscale-mode') || 'adaptive',
+      mime_type: mimeType,
+      file_url: URL.createObjectURL(response.data),
+      file_base64: '',
+    };
   }
 
-  // Base64 direct post (e.g. for already converted images in queue)
-  const response = await api.post<UpscaleResponse>('/image/upscale', {
-    file_base64: params.file_base64,
-    scale: params.scale || 2,
-    output_format: params.output_format || 'png',
-    output_file_name: params.output_file_name,
-  });
-
-  if (!response.data.success || !response.data.data) {
-    throw new Error(response.data.message || 'Failed to upscale image');
+  if (params.file_base64) {
+    const blob = base64ToImageBlob(params.file_base64, 'image/png');
+    return upscaleImageViaBackend({
+      ...params,
+      file: new File([blob], 'image.png', { type: blob.type }),
+      file_base64: undefined,
+    });
   }
 
-  return response.data.data;
+  throw new Error('An image file is required for upscaling');
 }
 
 export async function downloadAllImagesAsZip(

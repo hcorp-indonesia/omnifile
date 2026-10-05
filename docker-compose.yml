@@ -32,7 +32,17 @@ services:
             - CORS_ALLOW_ORIGINS=${CORS_ALLOW_ORIGINS:-*}
             - CORS_ALLOW_HEADERS=Origin, Content-Type, Accept, Authorization
             - CORS_ALLOW_METHODS=GET,POST,DELETE,OPTIONS,PUT,PATCH
+            - CORS_EXPOSE_HEADERS=X-Remove-Bg-Original-Format,X-Remove-Bg-Converted-Format,X-Remove-Bg-Original-Size,X-Remove-Bg-Result-Size,X-Remove-Bg-Original-Width,X-Remove-Bg-Original-Height,X-Remove-Bg-Width,X-Remove-Bg-Height,X-Remove-Bg-Model
             - JWT_SECRET=${JWT_SECRET:-change_me_in_production}
+            - REALESRGAN_MODEL_PATH=/models/RealESRGAN_x4plus.pth
+            - REALESRGAN_ENGINE=auto
+            - REALESRGAN_NCNN_PATH=/app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan
+            - REALESRGAN_NCNN_MODELS_PATH=/app/realesrgan-ncnn-vulkan/models
+            - REALESRGAN_NCNN_MODEL=realesr-animevideov3
+            - REMBG_MODEL_DIR=/models/rembg
+            - REMBG_PROVIDER=cpu
+        volumes:
+            - ./models:/models
 
     postgres:
         image: postgres:17-alpine

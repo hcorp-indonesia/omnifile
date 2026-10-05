@@ -283,8 +283,7 @@ export default function MergePdfPage() {
                     "dark:text-white",
                   )}
                 >
-                  Merge Order ({items.length} files •{" "}
-                  {formatFileSize(totalBytes)})
+                  Merge Order
                 </h2>
                 <p
                   className={cn(
@@ -867,21 +866,6 @@ export default function MergePdfPage() {
                   "overflow-hidden",
                 )}
               >
-                <div
-                  className={cn(
-                    "bg-gray-100",
-                    "dark:bg-gray-800",
-                    "px-4",
-                    "py-2",
-                    "text-xs",
-                    "font-black",
-                    "border-b",
-                    "border-gray-200",
-                    "dark:border-gray-700",
-                  )}
-                >
-                  Included Documents Summary
-                </div>
                 <div
                   className={cn(
                     "divide-y",

@@ -1425,17 +1425,6 @@ export default function SplitPdfPage() {
                     "pt-3",
                   )}
                 >
-                  <p
-                    className={cn(
-                      "text-xs",
-                      "font-black",
-                      "text-gray-800",
-                      "dark:text-gray-200",
-                      "mb-2",
-                    )}
-                  >
-                    Generated Documents ({result.items.length} files):
-                  </p>
                   <div
                     className={cn("max-h-36", "overflow-y-auto", "space-y-1.5")}
                   >

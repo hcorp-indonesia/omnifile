@@ -1,31 +1,91 @@
 <!doctype html>
-<html lang="en">
+<html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/png" href="/apps/web/public/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Magic Converter - Convert units instantly with a beautiful interface" />
     <title>OmniFile</title>
+    <meta name="title" content="OmniFile" />
+    <meta
+      name="description"
+      content="Convert units instantly with a beautiful interface"
+    />
+    <meta
+      name="keywords"
+      content="OmniFile, Convert units instantly with a beautiful interface"
+    />
+    <meta name="author" content="OmniFile" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="OmniFile" />
+    <meta
+      property="og:description"
+      content="Convert units instantly with a beautiful interface"
+    />
+    <meta property="og:image" content="/apps/web/public/logo.png" />
+
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image" />
+    <meta property="twitter:title" content="OmniFile" />
+    <meta
+      property="twitter:description"
+      content="Convert units instantly with a beautiful interface"
+    />
+    <meta property="twitter:image" content="/apps/web/public/logo.png" />
+
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
-    <script>
-      (function() {
-        try {
-          var stored = localStorage.getItem('mc-theme');
-          var theme = stored ? JSON.parse(stored).state?.theme : null;
-          var isDark = theme ? (theme === 'dark') : window.matchMedia('(prefers-color-scheme: dark)').matches;
-          if (isDark) {
-            document.documentElement.classList.add('dark');
-            document.documentElement.classList.remove('light');
-            document.documentElement.style.colorScheme = 'dark';
-          } else {
-            document.documentElement.classList.add('light');
-            document.documentElement.classList.remove('dark');
-            document.documentElement.style.colorScheme = 'light';
+    <link
+      href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Outfit:wght@100..900&display=swap"
+      rel="stylesheet"
+    />
+
+    <!-- Schema.org JSON-LD untuk Sitelinks & SEO -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "WebSite",
+            "name": "OmniFile",
+            "alternateName": "Convert units instantly with a beautiful interface",
+            "url": "https://omnifile.com/",
+            "description": "Convert units instantly with a beautiful interface"
+          },
+          {
+            "@type": "Organization",
+            "name": "OmniFile",
+            "url": "https://omnifile.com/",
+            "logo": "https://omnifile.com/images/logoppm.png"
+          },
+          {
+            "@type": "ItemList",
+            "itemListElement": [
+              {
+                "@type": "SiteNavigationElement",
+                "position": 1,
+                "name": "Home",
+                "url": "https://omnifile.com/"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 2,
+                "name": "Split PDF",
+                "url": "https://omnifile.com/split-pdf"
+              },
+              {
+                "@type": "SiteNavigationElement",
+                "position": 3,
+                "name": "Merge PDF",
+                "url": "https://ppmbki.com/artberitaicles"
+              }
+            ]
           }
-        } catch (e) {}
-      })();
+        ]
+      }
     </script>
   </head>
   <body>

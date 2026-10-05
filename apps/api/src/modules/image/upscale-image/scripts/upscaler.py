@@ -1,138 +1,142 @@
 #!/usr/bin/env python3
-"""
-Magic Converter - AI & Super Resolution Image Upscaler
-Upscales images by 2x or 4x with edge-preserving filtering, detail enhancement, and transparency support.
-"""
+"""Low-memory Real-ESRGAN worker for Magic Converter."""
 
 import argparse
 import json
 import os
 import sys
-from PIL import Image, ImageOps, ImageFilter, ImageEnhance
+
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Image Super Resolution Upscaler")
-    parser.add_argument("--input", required=True, help="Input image file path")
-    parser.add_argument("--output", required=True, help="Output image file path")
-    parser.add_argument("--scale", type=int, default=2, help="Scale multiplier (2 or 4)")
-    parser.add_argument("--format", default="", help="Output format (png, jpg, webp)")
+    parser = argparse.ArgumentParser(description="Real-ESRGAN image upscaler")
+    parser.add_argument("--input", required=True)
+    parser.add_argument("--output", required=True)
+    parser.add_argument("--scale", type=int, choices=(2, 4), default=2)
+    parser.add_argument("--format", default="webp")
+    parser.add_argument("--model-path", required=True)
+    parser.add_argument("--max-size-mb", type=float, default=5.0)
+    parser.add_argument("--max-dimension", type=int, default=3840)
+    parser.add_argument("--tile", type=int, default=96)
+    parser.add_argument("--cpu-threads", type=int, default=2)
     return parser.parse_args()
 
-def upscale_image(im, scale):
-    orig_w, orig_h = im.size
-    target_w = orig_w * scale
-    target_h = orig_h * scale
 
-    # Step 1: High fidelity Lanczos resampling
-    upscaled = im.resize((target_w, target_h), Image.Resampling.LANCZOS)
+def save_image(image, output_path, target_format, max_bytes):
+    from PIL import Image
 
-    # Step 2: Unsharp masking tailored to scale factor
-    # If image has alpha channel, separate alpha to avoid halo artifacts
-    if upscaled.mode == "RGBA":
-        r, g, b, a = upscaled.split()
-        rgb = Image.merge("RGB", (r, g, b))
-        
-        # Apply edge sharpening to RGB
-        radius = 1.5 if scale == 2 else 2.5
-        percent = 135 if scale == 2 else 150
-        rgb_sharp = rgb.filter(ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=2))
-        
-        # Subtle contrast/detail enhance
-        enhancer = ImageEnhance.Sharpness(rgb_sharp)
-        rgb_enhanced = enhancer.enhance(1.2)
-        
-        # Re-merge with original alpha
-        r_new, g_new, b_new = rgb_enhanced.split()
-        final_im = Image.merge("RGBA", (r_new, g_new, b_new, a))
-    else:
-        radius = 1.5 if scale == 2 else 2.5
-        percent = 135 if scale == 2 else 150
-        sharp = upscaled.filter(ImageFilter.UnsharpMask(radius=radius, percent=percent, threshold=2))
-        enhancer = ImageEnhance.Sharpness(sharp)
-        final_im = enhancer.enhance(1.2)
+    target_format = target_format.lower()
+    if target_format in ("jpg", "jpeg"):
+        if image.mode != "RGB":
+            background = Image.new("RGB", image.size, (255, 255, 255))
+            if image.mode == "RGBA":
+                background.paste(image, mask=image.getchannel("A"))
+            else:
+                background.paste(image)
+            image = background
+        quality = 90
+        while quality >= 65:
+            image.save(output_path, format="JPEG", quality=quality, optimize=True)
+            if os.path.getsize(output_path) <= max_bytes or quality == 65:
+                break
+            quality -= 5
+        return "JPEG", image.size
 
-    return final_im
+    if target_format == "png":
+        image.save(output_path, format="PNG", optimize=True, compress_level=6)
+        return "PNG", image.size
+
+    if image.mode not in ("RGB", "RGBA"):
+        image = image.convert("RGBA")
+    quality = 90
+    while quality >= 65:
+        image.save(output_path, format="WEBP", quality=quality, method=4)
+        if os.path.getsize(output_path) <= max_bytes or quality == 65:
+            break
+        quality -= 5
+    return "WEBP", image.size
+
 
 def main():
     args = parse_args()
-    input_path = args.input
-    output_path = args.output
-    scale = args.scale if args.scale in [2, 4] else 2
+    if not os.path.exists(args.input):
+        raise RuntimeError("input image not found")
+    if not os.path.exists(args.model_path):
+        raise RuntimeError(
+            f"Real-ESRGAN model not found at {args.model_path}; "
+            "download RealESRGAN_x4plus.pth and set REALESRGAN_MODEL_PATH"
+        )
 
-    if not os.path.exists(input_path):
-        print(json.dumps({
-            "success": False,
-            "error": f"Input file not found: {input_path}"
-        }))
-        sys.exit(1)
+    os.environ.setdefault("OMP_NUM_THREADS", str(max(1, args.cpu_threads)))
+    os.environ.setdefault("MKL_NUM_THREADS", str(max(1, args.cpu_threads)))
 
-    try:
-        original_size = os.path.getsize(input_path)
-        with Image.open(input_path) as im:
-            try:
-                im = ImageOps.exif_transpose(im)
-            except Exception:
-                pass
+    import numpy as np
+    import torch
+    from PIL import Image, ImageOps
+    import torchvision.transforms._functional_tensor as functional_tensor
 
-            orig_w, orig_h = im.size
-            orig_format = im.format or "UNKNOWN"
+    sys.modules.setdefault("torchvision.transforms.functional_tensor", functional_tensor)
+    from basicsr.archs.rrdbnet_arch import RRDBNet
+    from realesrgan import RealESRGANer
 
-            # Determine format
-            target_fmt = args.format.lower().strip()
-            if not target_fmt:
-                target_fmt = orig_format.lower()
-            if target_fmt in ["jpeg", "jpg"]:
-                target_fmt = "jpg"
-            elif target_fmt not in ["png", "webp"]:
-                target_fmt = "png"
+    torch.set_num_threads(max(1, args.cpu_threads))
+    torch.set_num_interop_threads(1)
 
-            # Run upscaling
-            result_im = upscale_image(im, scale)
-            new_w, new_h = result_im.size
+    with Image.open(args.input) as source:
+        source = ImageOps.exif_transpose(source)
+        original_width, original_height = source.size
+        original_format = source.format or "UNKNOWN"
+        alpha = source.getchannel("A") if "A" in source.getbands() else None
+        rgb = source.convert("RGB")
 
-            # Save in requested format
-            if target_fmt == "png":
-                if result_im.mode not in ("RGBA", "RGB"):
-                    result_im = result_im.convert("RGBA")
-                result_im.save(output_path, format="PNG", optimize=True, compress_level=6)
-                out_format = "PNG"
-            elif target_fmt == "webp":
-                if result_im.mode not in ("RGBA", "RGB"):
-                    result_im = result_im.convert("RGBA")
-                result_im.save(output_path, format="WEBP", quality=95, method=6)
-                out_format = "WEBP"
-            else:
-                if result_im.mode != "RGB":
-                    bg = Image.new("RGB", result_im.size, (255, 255, 255))
-                    if result_im.mode == "RGBA":
-                        bg.paste(result_im, mask=result_im.split()[-1])
-                    else:
-                        bg.paste(result_im)
-                    result_im = bg
-                result_im.save(output_path, format="JPEG", quality=95, optimize=True)
-                out_format = "JPEG"
+        target_width = original_width * args.scale
+        target_height = original_height * args.scale
+        if max(target_width, target_height) > args.max_dimension:
+            ratio = args.max_dimension / max(target_width, target_height)
+            target_width = max(1, round(target_width * ratio))
+            target_height = max(1, round(target_height * ratio))
 
-        result_size = os.path.getsize(output_path)
+        model = RRDBNet(
+            num_in_ch=3, num_out_ch=3, num_feat=64,
+            num_block=23, num_grow_ch=32, scale=4,
+        )
+        upsampler = RealESRGANer(
+            scale=4,
+            model_path=args.model_path,
+            model=model,
+            tile=max(32, args.tile),
+            tile_pad=8,
+            pre_pad=0,
+            half=False,
+            gpu_id=None,
+        )
+        output, _ = upsampler.enhance(np.asarray(rgb), outscale=args.scale)
+        result = Image.fromarray(output[:, :, ::-1]).convert("RGB")
+        if result.size != (target_width, target_height):
+            result = result.resize((target_width, target_height), Image.Resampling.LANCZOS)
+        if alpha is not None:
+            result.putalpha(alpha.resize(result.size, Image.Resampling.LANCZOS))
 
-        print(json.dumps({
-            "success": True,
-            "original_format": orig_format,
-            "converted_format": out_format,
-            "original_width": orig_w,
-            "original_height": orig_h,
-            "upscaled_width": new_w,
-            "upscaled_height": new_h,
-            "scale_factor": scale,
-            "original_size": original_size,
-            "upscaled_size": result_size
-        }))
+        output_format, (upscaled_width, upscaled_height) = save_image(
+            result, args.output, args.format, int(args.max_size_mb * 1024 * 1024)
+        )
 
-    except Exception as e:
-        print(json.dumps({
-            "success": False,
-            "error": str(e)
-        }))
-        sys.exit(1)
+    print(json.dumps({
+        "success": True,
+        "original_format": original_format,
+        "converted_format": output_format,
+        "original_width": original_width,
+        "original_height": original_height,
+        "upscaled_width": upscaled_width,
+        "upscaled_height": upscaled_height,
+        "scale_factor": args.scale,
+        "original_size": os.path.getsize(args.input),
+        "upscaled_size": os.path.getsize(args.output),
+    }))
+
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as error:
+        print(json.dumps({"success": False, "error": str(error)}))
+        sys.exit(1)

@@ -32,14 +32,27 @@ RUN CGO_ENABLED=0 GOOS=linux go build -ldflags="-s -w" -o /app/healthcheck hc/ma
 # =========================================================
 # Stage 3: Runtime (Alpine)
 # =========================================================
-FROM alpine:3.21 AS runtime
+FROM python:3.12-slim AS runtime
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates tzdata tesseract-ocr tesseract-ocr-data-eng tesseract-ocr-data-ind
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl unzip libgomp1 libvulkan1 tzdata tesseract-ocr tesseract-ocr-eng tesseract-ocr-ind && \
+    curl -fsSL https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.5.0/realesrgan-ncnn-vulkan-20220424-ubuntu.zip -o /tmp/realesrgan-ncnn-vulkan.zip && \
+    unzip -q /tmp/realesrgan-ncnn-vulkan.zip -d /app/realesrgan-ncnn-vulkan && \
+    chmod +x /app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan && \
+    rm -f /tmp/realesrgan-ncnn-vulkan.zip && \
+    apt-get purge -y --auto-remove curl unzip && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy Go binary and health check
 COPY --from=api-builder /app/server .
 COPY --from=api-builder /app/healthcheck .
+COPY apps/api/src/modules/image/upscale-image/scripts/upscaler.py ./scripts/upscaler.py
+COPY apps/api/src/modules/image/upscale-image/scripts/requirements.txt ./scripts/requirements.txt
+COPY apps/api/src/modules/image/remove-bg/scripts/remove_bg.py ./scripts/remove_bg.py
+COPY apps/api/src/modules/image/remove-bg/scripts/requirements.txt ./scripts/remove-bg-requirements.txt
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cpu torch==2.7.1 torchvision==0.22.1 && \
+    pip install --no-cache-dir numpy==2.5.3 Pillow==12.3.0 realesrgan==0.3.0 && \
+    pip install --no-cache-dir -r ./scripts/remove-bg-requirements.txt
 
 # Copy built frontend into static directory
 COPY --from=web-builder /app/apps/web/dist ./static

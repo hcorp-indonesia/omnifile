@@ -1,133 +1,227 @@
 import {
   ArrowLeft,
   Download,
-  Eye,
-  Loader2,
+  Paintbrush,
   RefreshCw,
+  RotateCcw,
   Scissors,
-  Upload,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 
-import { Card } from "@/components/ui/card";
 import {
-  downloadImageResult,
   removeBackgroundViaBackend,
-  type ConvertImageResult,
   type RemoveBgResult,
 } from "@/lib/image-convert-api";
 import { cn } from "@/lib/utils";
+import { ImageDropzone } from "@/pages/image/components/image-dropzone";
+import { ImageProcessingCard } from "@/pages/image/components/image-processing-card";
+import { BackgroundEditor } from "@/pages/image/remove-bg/background-editor";
+
+type RemoveBgStatus = "pending" | "processing" | "done" | "error";
+
+interface RemoveBgItem {
+  id: string;
+  file: File;
+  name: string;
+  previewUrl: string;
+  progress: number;
+  status: RemoveBgStatus;
+  result?: RemoveBgResult;
+  errorMessage?: string;
+}
 
 export default function RemoveBgPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [model, setModel] = useState<"u2netp" | "u2net">("u2netp");
+  const [items, setItems] = useState<RemoveBgItem[]>([]);
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
-  const [uploadProgress, setUploadProgress] = useState<number>(0);
-  const [result, setResult] = useState<RemoveBgResult | null>(null);
-  const [previewBgColor, setPreviewBgColor] = useState<string>("transparent");
-  const [sliderPosition, setSliderPosition] = useState<number>(50);
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const itemsRef = useRef<RemoveBgItem[]>([]);
 
   useEffect(() => {
-    if (file) {
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
-      return () => URL.revokeObjectURL(url);
-    } else {
-      setPreviewUrl(null);
-    }
-  }, [file]);
+    itemsRef.current = items;
+  }, [items]);
+
+  useEffect(() => {
+    return () => {
+      itemsRef.current.forEach((item) => {
+        URL.revokeObjectURL(item.previewUrl);
+        if (item.result?.file_url) URL.revokeObjectURL(item.result.file_url);
+      });
+    };
+  }, []);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return "0 Bytes";
-    const k = 1024;
+    const base = 1024;
     const sizes = ["Bytes", "KB", "MB", "GB"];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    const unitIndex = Math.floor(Math.log(bytes) / Math.log(base));
+    return `${parseFloat((bytes / Math.pow(base, unitIndex)).toFixed(1))} ${sizes[unitIndex]}`;
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = e.target.files?.[0];
-    if (selected) {
-      if (!selected.type.startsWith("image/")) {
-        toast.error("Please upload a valid image file (JPG, PNG, WebP).");
-        return;
+  const processItems = async (targetItems: RemoveBgItem[]) => {
+    if (targetItems.length === 0) return;
+    setIsProcessing(true);
+    let successCount = 0;
+
+    for (const target of targetItems) {
+      setItems((current) =>
+        current.map((item) =>
+          item.id === target.id
+            ? {
+                ...item,
+                status: "processing",
+                progress: 12,
+                errorMessage: undefined,
+              }
+            : item,
+        ),
+      );
+
+      try {
+        const result = await removeBackgroundViaBackend(
+          target.file,
+          {
+            output_format: "png",
+          },
+          (percentage) => {
+            const progress = Math.min(
+              Math.max(Math.round(percentage * 0.45), 12),
+              45,
+            );
+            setItems((current) =>
+              current.map((item) =>
+                item.id === target.id
+                  ? { ...item, progress: Math.max(item.progress, progress) }
+                  : item,
+              ),
+            );
+          },
+        );
+
+        setItems((current) =>
+          current.map((item) =>
+            item.id === target.id
+              ? { ...item, status: "done", progress: 100, result }
+              : item,
+          ),
+        );
+        successCount++;
+      } catch (error) {
+        const message =
+          error instanceof Error
+            ? error.message
+            : "Failed to remove the background";
+        setItems((current) =>
+          current.map((item) =>
+            item.id === target.id
+              ? {
+                  ...item,
+                  status: "error",
+                  progress: 0,
+                  errorMessage: message,
+                }
+              : item,
+          ),
+        );
       }
-      setFile(selected);
-      setResult(null);
+    }
+
+    setIsProcessing(false);
+    if (successCount > 0) {
+      toast.success(
+        `${successCount} image${successCount > 1 ? "s are" : " is"} transparent and ready to edit.`,
+      );
     }
   };
 
-  const handleProcessRemoveBg = async () => {
-    if (!file) {
-      toast.error("Silakan pilih gambar terlebih dahulu.");
+  const handleFilesSelected = (files: File[]) => {
+    const validFiles = files.filter((file) =>
+      /\.(jpe?g|png|webp)$/i.test(file.name),
+    );
+    if (validFiles.length === 0) {
+      toast.error("Please select valid JPG, PNG, or WebP images.");
       return;
     }
 
-    try {
-      setIsProcessing(true);
-      setUploadProgress(15);
-      const res = await removeBackgroundViaBackend(
-        file,
-        {
-          model: model,
-          output_format: "png",
-        },
-        (pct) => setUploadProgress(pct),
-      );
+    const timestamp = Date.now();
+    const newItems: RemoveBgItem[] = validFiles.map((file, index) => ({
+      id: `${file.name}-${file.lastModified}-${timestamp}-${index}`,
+      file,
+      name: file.name,
+      previewUrl: URL.createObjectURL(file),
+      progress: 0,
+      status: "pending",
+    }));
 
-      setResult(res);
-      toast.success("Background berhasil dibersihkan menjadi transparan!");
-    } catch (err) {
-      const msg =
-        err instanceof Error ? err.message : "Gagal menghapus background";
-      toast.error(msg);
-    } finally {
-      setIsProcessing(false);
-      setUploadProgress(0);
+    setItems((current) => [...current, ...newItems]);
+    toast.info(
+      `Processing ${newItems.length} image${newItems.length > 1 ? "s" : ""} with BiRefNet...`,
+    );
+    void processItems(newItems);
+  };
+
+  const handleDelete = (id: string) => {
+    const item = items.find((entry) => entry.id === id);
+    if (item) {
+      URL.revokeObjectURL(item.previewUrl);
+      if (item.result?.file_url) URL.revokeObjectURL(item.result.file_url);
     }
+    setItems((current) => current.filter((entry) => entry.id !== id));
   };
 
   const handleReset = () => {
-    setFile(null);
-    setResult(null);
-    setIsProcessing(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    items.forEach((item) => {
+      URL.revokeObjectURL(item.previewUrl);
+      if (item.result?.file_url) URL.revokeObjectURL(item.result.file_url);
+    });
+    setItems([]);
+    setEditingId(null);
   };
 
-  const handleDownload = () => {
-    if (!result) return;
-    const convResult: ConvertImageResult = {
-      file_name: result.file_name,
-      original_format: result.original_format,
-      converted_format: result.converted_format,
-      original_size: result.original_size,
-      converted_size: result.result_size,
-      saved_bytes: result.original_size - result.result_size,
-      saved_percentage:
-        result.original_size > 0
-          ? ((result.original_size - result.result_size) /
-              result.original_size) *
-            100
-          : 0,
-      original_width: result.original_width,
-      original_height: result.original_height,
-      converted_width: result.result_width,
-      converted_height: result.result_height,
-      mime_type: result.mime_type,
-      file_base64: result.file_base64,
-    };
-    downloadImageResult(convResult);
+  const handleDownload = (item: RemoveBgItem) => {
+    if (!item.result) return;
+    const link = document.createElement("a");
+    link.href = item.result.file_url;
+    link.download = item.result.file_name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
+
+  const handleSaveEdit = (item: RemoveBgItem, blob: Blob) => {
+    if (!item.result) return;
+    const editedUrl = URL.createObjectURL(blob);
+    const previousUrl = item.result.file_url;
+    const editedName = item.result.file_name.replace(/\.png$/i, "_edited.png");
+
+    setItems((current) =>
+      current.map((entry) =>
+        entry.id === item.id && entry.result
+          ? {
+              ...entry,
+              result: {
+                ...entry.result,
+                file_name: editedName,
+                file_url: editedUrl,
+                result_size: blob.size,
+              },
+            }
+          : entry,
+      ),
+    );
+    URL.revokeObjectURL(previousUrl);
+    setEditingId(null);
+    toast.success("Remove/Restore edits saved successfully.");
+  };
+
+  const editingItem = items.find(
+    (item) => item.id === editingId && item.result,
+  );
 
   return (
     <div className={cn("mx-auto", "max-w-5xl", "space-y-6", "py-4", "pb-24")}>
-      {/* Top Header Navigation */}
-      <div className={cn("flex", "items-center", "justify-between")}>
+      <div className={cn("flex", "items-center", "justify-between", "gap-3")}>
         <Link
           to="/image"
           className={cn(
@@ -137,54 +231,54 @@ export default function RemoveBgPage() {
             "rounded-xl",
             "border-3",
             "border-gray-900",
-            "dark:border-gray-700",
             "bg-white",
-            "dark:bg-[#16181d]",
             "px-4",
             "py-2",
             "text-xs",
             "font-black",
             "shadow-[3px_3px_0_0_#111827]",
-            "dark:shadow-[3px_3px_0_0_#000]",
             "transition-all",
             "hover:-translate-y-0.5",
+            "dark:border-gray-700",
+            "dark:bg-[#16181d]",
+            "dark:shadow-[3px_3px_0_0_#000]",
           )}
         >
           <ArrowLeft className={cn("h-4", "w-4")} />
-          <span>Kembali ke Image Tools</span>
+          Back
         </Link>
 
-        {file && (
+        {items.length > 0 && (
           <button
             type="button"
             onClick={handleReset}
+            disabled={isProcessing}
             className={cn(
               "inline-flex",
               "items-center",
-              "gap-1.5",
+              "gap-2",
               "rounded-xl",
               "border-2",
               "border-gray-900",
               "bg-gray-100",
               "px-3",
-              "py-1.5",
+              "py-2",
               "text-xs",
-              "font-bold",
-              "text-gray-800",
+              "font-black",
+              "transition-colors",
               "hover:bg-gray-200",
-              "cursor-pointer",
+              "disabled:cursor-not-allowed",
+              "disabled:opacity-50",
               "dark:border-gray-700",
               "dark:bg-gray-800",
-              "dark:text-gray-200",
             )}
           >
-            <RefreshCw className={cn("h-3.5", "w-3.5")} />
-            Reset
+            <RefreshCw className={cn("h-4", "w-4")} />
+            Clear All
           </button>
         )}
       </div>
 
-      {/* Header Section */}
       <div className={cn("space-y-3", "text-center")}>
         <div
           className={cn(
@@ -207,7 +301,6 @@ export default function RemoveBgPage() {
           className={cn(
             "text-4xl",
             "font-black",
-            "leading-tight",
             "tracking-tight",
             "text-gray-900",
             "dark:text-white",
@@ -227,599 +320,135 @@ export default function RemoveBgPage() {
             "md:text-base",
           )}
         >
-          Hapus latar belakang foto secara otomatis dengan model AI canggih dan
-          dapatkan hasil{" "}
-          <span className={cn("text-purple-600", "font-black")}>
-            PNG Transparan Pixel-Perfect
-          </span>
-          .
+          Upload images, remove backgrounds automatically, then refine each
+          result with Remove and Restore brushes.
         </p>
       </div>
 
-      {/* Main Grid */}
-      <div className={cn("grid", "grid-cols-1", "lg:grid-cols-12", "gap-6")}>
-        {/* Left Column: Upload / Settings */}
-        <div className={cn("lg:col-span-5", "space-y-6")}>
-          <Card
-            variant="elevated"
-            rounded="3xl"
-            className={cn("p-6", "space-y-6")}
-          >
-            {/* Upload Area */}
-            <div>
-              <label
-                className={cn(
-                  "block",
-                  "text-sm",
-                  "font-black",
-                  "text-gray-900",
-                  "dark:text-white",
-                  "mb-2",
-                )}
-              >
-                Pilih Foto
-              </label>
+      <ImageDropzone
+        dropzoneTitle="Click or Drag & Drop images here"
+        dropzoneSubtitle="Supports multiple JPG, PNG, and WebP files (Max 50MB each)"
+        multiple={true}
+        disabled={isProcessing}
+        onFilesSelected={handleFilesSelected}
+      />
 
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                onChange={handleFileChange}
-                className={cn("hidden")}
-              />
-
-              {!file ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  className={cn(
-                    "flex",
-                    "flex-col",
-                    "items-center",
-                    "justify-center",
-                    "min-h-52",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-dashed",
-                    "border-gray-900",
-                    "bg-purple-50",
-                    "p-6",
-                    "text-center",
-                    "cursor-pointer",
-                    "transition-all",
-                    "hover:bg-purple-100",
-                    "dark:border-gray-700",
-                    "dark:bg-[#1f222a]",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "flex",
-                      "h-14",
-                      "w-14",
-                      "items-center",
-                      "justify-center",
-                      "rounded-xl",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-purple-400",
-                      "shadow-[2px_2px_0_0_#111827]",
-                      "mb-3",
-                    )}
-                  >
-                    <Upload className={cn("h-7", "w-7", "text-gray-900")} />
-                  </div>
-                  <p className={cn("text-base", "font-black", "text-gray-900", "dark:text-white")}>
-                    Klik atau Drop Foto di sini
-                  </p>
-                  <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400", "mt-1")}>
-                    Mendukung JPG, PNG, WebP (Max 50MB)
-                  </p>
-                </div>
-              ) : (
-                <div
-                  className={cn(
-                    "flex",
-                    "items-center",
-                    "gap-3.5",
-                    "p-4",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-gray-900",
-                    "bg-white",
-                    "dark:border-gray-700",
-                    "dark:bg-[#1a1c22]",
-                    "shadow-[3px_3px_0_0_#111827]",
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "h-14",
-                      "w-14",
-                      "shrink-0",
-                      "overflow-hidden",
-                      "rounded-xl",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-gray-100",
-                    )}
-                  >
-                    {previewUrl && (
-                      <img
-                        src={previewUrl}
-                        alt="Upload preview"
-                        className={cn("h-full", "w-full", "object-cover")}
-                      />
-                    )}
-                  </div>
-                  <div className={cn("min-w-0", "flex-1")}>
-                    <p
-                      className={cn(
-                        "truncate",
-                        "text-sm",
-                        "font-black",
-                        "text-gray-900",
-                        "dark:text-white",
-                      )}
-                    >
-                      {file.name}
-                    </p>
-                    <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>
-                      {formatFileSize(file.size)}
-                    </p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className={cn(
-                      "rounded-xl",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-gray-100",
-                      "px-3",
-                      "py-1.5",
-                      "text-xs",
-                      "font-bold",
-                      "hover:bg-gray-200",
-                      "cursor-pointer",
-                      "dark:bg-gray-800",
-                      "dark:text-white",
-                    )}
-                  >
-                    Ganti
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {/* Model Selection */}
-            <div className={cn("space-y-2")}>
-              <label
-                className={cn(
-                  "block",
-                  "text-xs",
-                  "font-black",
-                  "text-gray-800",
-                  "dark:text-gray-200",
-                )}
-              >
-                Model AI:
-              </label>
-              <div className={cn("grid", "grid-cols-2", "gap-3")}>
-                <button
-                  type="button"
-                  onClick={() => setModel("u2netp")}
-                  className={cn(
-                    "flex",
-                    "flex-col",
-                    "p-3.5",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-gray-900",
-                    "text-left",
-                    "cursor-pointer",
-                    "transition-all",
-                    model === "u2netp"
-                      ? "bg-purple-300 text-gray-900 shadow-[3px_3px_0_0_#111827] -translate-y-0.5"
-                      : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-[#1a1c22] dark:text-gray-300",
-                  )}
-                >
-                  <span className={cn("text-sm", "font-black")}>u2netp</span>
-                  <span className={cn("text-[11px]", "font-semibold", "text-gray-600", "dark:text-gray-400", "mt-0.5")}>
-                    Super Cepat (&lt;1s)
-                  </span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => setModel("u2net")}
-                  className={cn(
-                    "flex",
-                    "flex-col",
-                    "p-3.5",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-gray-900",
-                    "text-left",
-                    "cursor-pointer",
-                    "transition-all",
-                    model === "u2net"
-                      ? "bg-purple-300 text-gray-900 shadow-[3px_3px_0_0_#111827] -translate-y-0.5"
-                      : "bg-white text-gray-700 hover:bg-gray-50 dark:bg-[#1a1c22] dark:text-gray-300",
-                  )}
-                >
-                  <span className={cn("text-sm", "font-black")}>u2net</span>
-                  <span className={cn("text-[11px]", "font-semibold", "text-gray-600", "dark:text-gray-400", "mt-0.5")}>
-                    Presisi Tinggi
-                  </span>
-                </button>
-              </div>
-            </div>
-
-            {/* Process Button */}
-            <button
-              type="button"
-              disabled={!file || isProcessing}
-              onClick={handleProcessRemoveBg}
-              className={cn(
-                "w-full",
-                "flex",
-                "items-center",
-                "justify-center",
-                "gap-2",
-                "rounded-2xl",
-                "border-3",
-                "border-gray-900",
-                "bg-purple-400",
-                "py-3.5",
-                "text-sm",
-                "font-black",
-                "text-gray-900",
-                "shadow-[4px_4px_0_0_#111827]",
-                "transition-all",
-                "cursor-pointer",
-                "hover:-translate-y-1",
-                "hover:bg-purple-300",
-                (!file || isProcessing) && "opacity-60 cursor-not-allowed",
-              )}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className={cn("h-5", "w-5", "animate-spin")} />
-                  <span>
-                    {uploadProgress > 0 && uploadProgress < 100
-                      ? `Uploading ${uploadProgress}%...`
-                      : "Memproses AI Segmentasi..."}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Scissors className={cn("h-5", "w-5")} />
-                  <span>Hapus Background Sekarang ✨</span>
-                </>
-              )}
-            </button>
-          </Card>
-        </div>
-
-        {/* Right Column: Preview & Comparison */}
-        <div className={cn("lg:col-span-7")}>
-          <Card
-            variant="elevated"
-            rounded="3xl"
-            className={cn("p-6", "sm:p-8", "space-y-6")}
-          >
-            <div className={cn("flex", "items-center", "justify-between", "border-b", "border-gray-200", "pb-4", "dark:border-gray-800")}>
-              <h2 className={cn("text-lg", "font-black", "text-gray-900", "dark:text-white")}>
-                Hasil & Preview
-              </h2>
-
-              {/* Background Color Preview Selector */}
-              {result && (
-                <div className={cn("flex", "items-center", "gap-2")}>
-                  <span className={cn("text-xs", "font-bold", "text-gray-500")}>
-                    Preview BG:
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPreviewBgColor("transparent")}
-                    className={cn(
-                      "h-6",
-                      "w-6",
-                      "rounded-full",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-[radial-gradient(#cbd5e1_1px,transparent_1px)]",
-                      "[background-size:6px_6px]",
-                      "bg-white",
-                      previewBgColor === "transparent" && "ring-2 ring-purple-600 ring-offset-2",
-                    )}
-                    title="Transparan"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPreviewBgColor("#ffffff")}
-                    className={cn(
-                      "h-6",
-                      "w-6",
-                      "rounded-full",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-white",
-                      previewBgColor === "#ffffff" && "ring-2 ring-purple-600 ring-offset-2",
-                    )}
-                    title="Putih"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setPreviewBgColor("#111827")}
-                    className={cn(
-                      "h-6",
-                      "w-6",
-                      "rounded-full",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-gray-900",
-                      previewBgColor === "#111827" && "ring-2 ring-purple-600 ring-offset-2",
-                    )}
-                    title="Hitam"
-                  />
-                </div>
-              )}
-            </div>
-
-            {/* Display Area */}
-            {!result ? (
-              <div
-                className={cn(
-                  "flex",
-                  "flex-col",
-                  "items-center",
-                  "justify-center",
-                  "min-h-96",
-                  "rounded-2xl",
-                  "border-3",
-                  "border-gray-900",
-                  "bg-gray-100/70",
-                  "p-8",
-                  "text-center",
-                  "dark:border-gray-700",
-                  "dark:bg-[#16181d]",
-                )}
-              >
-                <div
-                  className={cn(
-                    "flex",
-                    "h-16",
-                    "w-16",
-                    "items-center",
-                    "justify-center",
-                    "rounded-2xl",
-                    "border-2",
-                    "border-gray-900",
-                    "bg-yellow-300",
-                    "shadow-[3px_3px_0_0_#111827]",
-                    "mb-4",
-                  )}
-                >
-                  <Eye className={cn("h-8", "w-8", "text-gray-900")} />
-                </div>
-                <h3 className={cn("text-base", "font-black", "text-gray-900", "dark:text-white")}>
-                  Preview Hasil Background Transparan
-                </h3>
-                <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400", "max-w-sm", "mt-1")}>
-                  Upload gambar dan klik &quot;Hapus Background Sekarang&quot; untuk melihat
-                  perbandingan sebelum dan sesudah.
-                </p>
-              </div>
-            ) : (
-              <div className={cn("space-y-6")}>
-                {/* Comparison Box */}
-                <div
-                  className={cn(
-                    "relative",
-                    "h-96",
-                    "w-full",
-                    "overflow-hidden",
-                    "rounded-2xl",
-                    "border-3",
-                    "border-gray-900",
-                    "shadow-[4px_4px_0_0_#111827]",
-                    "select-none",
-                  )}
-                  style={{
-                    backgroundColor:
-                      previewBgColor === "transparent" ? "#ffffff" : previewBgColor,
-                    backgroundImage:
-                      previewBgColor === "transparent"
-                        ? "repeating-conic-gradient(#e2e8f0 0% 25%, #ffffff 0% 50%)"
-                        : "none",
-                    backgroundSize: "20px 20px",
-                  }}
-                >
-                  {/* Converted Transparent Image */}
-                  <img
-                    src={`data:${result.mime_type};base64,${result.file_base64}`}
-                    alt="Transparent Result"
-                    className={cn(
-                      "absolute",
-                      "inset-0",
-                      "h-full",
-                      "w-full",
-                      "object-contain",
-                      "pointer-events-none",
-                    )}
-                  />
-
-                  {/* Original Image Layer (Clipped by slider) */}
-                  {previewUrl && (
-                    <div
-                      className={cn("absolute", "inset-0", "overflow-hidden")}
-                      style={{ width: `${sliderPosition}%` }}
-                    >
-                      <img
-                        src={previewUrl}
-                        alt="Original"
+      {items.length > 0 && (
+        <div className={cn("space-y-3")}>
+            {items.map((item, index) => (
+              <ImageProcessingCard
+                key={item.id}
+                index={index}
+                thumbnailUrl={item.result?.file_url ?? item.previewUrl}
+                fileName={item.result?.file_name ?? item.name}
+                metadata={
+                  item.result
+                    ? `${item.result.result_width} × ${item.result.result_height}px • ${formatFileSize(item.result.result_size)}`
+                    : formatFileSize(item.file.size)
+                }
+                status={item.status}
+                progress={item.progress}
+                processingLabel="Removing BG..."
+                progressLabel="AI is separating the foreground"
+                errorMessage={item.errorMessage}
+                onRemove={() => handleDelete(item.id)}
+                removeDisabled={isProcessing}
+                actions={
+                  <>
+                    {item.status === "error" && (
+                      <button
+                        type="button"
+                        onClick={() => void processItems([item])}
+                        disabled={isProcessing}
                         className={cn(
-                          "absolute",
-                          "inset-0",
-                          "h-full",
-                          "max-w-none",
-                          "object-contain",
+                          "inline-flex",
+                          "items-center",
+                          "gap-2",
+                          "rounded-xl",
+                          "border-2",
+                          "border-gray-900",
+                          "bg-yellow-300",
+                          "px-3",
+                          "py-2",
+                          "text-xs",
+                          "font-black",
+                          "hover:-translate-y-0.5",
+                          "disabled:opacity-50",
                         )}
-                        style={{ width: "100%", height: "100%" }}
-                      />
-                    </div>
-                  )}
-
-                  {/* Slider Divider Line */}
-                  <div
-                    className={cn(
-                      "absolute",
-                      "top-0",
-                      "bottom-0",
-                      "w-1",
-                      "bg-gray-900",
-                      "cursor-ew-resize",
+                      >
+                        <RotateCcw className={cn("h-4", "w-4")} />
+                        Try Again
+                      </button>
                     )}
-                    style={{ left: `${sliderPosition}%` }}
-                  >
-                    <div
-                      className={cn(
-                        "absolute",
-                        "top-1/2",
-                        "-translate-y-1/2",
-                        "-translate-x-1/2",
-                        "flex",
-                        "h-8",
-                        "w-8",
-                        "items-center",
-                        "justify-center",
-                        "rounded-full",
-                        "border-2",
-                        "border-gray-900",
-                        "bg-yellow-400",
-                        "shadow-[2px_2px_0_0_#111827]",
-                      )}
-                    >
-                      <span className={cn("text-[10px]", "font-black")}>&harr;</span>
-                    </div>
-                  </div>
 
-                  {/* Badges */}
-                  <div
-                    className={cn(
-                      "absolute",
-                      "bottom-3",
-                      "left-3",
-                      "rounded-lg",
-                      "border",
-                      "border-gray-900",
-                      "bg-black/70",
-                      "px-2",
-                      "py-1",
-                      "text-[10px]",
-                      "font-black",
-                      "text-white",
+                    {item.status === "done" && item.result && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setEditingId(item.id)}
+                          className={cn(
+                            "inline-flex",
+                            "items-center",
+                            "gap-2",
+                            "rounded-xl",
+                            "border-2",
+                            "border-gray-900",
+                            "bg-purple-300",
+                            "px-3",
+                            "py-2",
+                            "text-xs",
+                            "font-black",
+                            "shadow-[2px_2px_0_0_#111827]",
+                            "transition-transform",
+                            "hover:-translate-y-0.5",
+                            "cursor-pointer",
+                          )}
+                        >
+                          <Paintbrush className={cn("h-4", "w-4")} />
+                          Edit
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(item)}
+                          className={cn(
+                            "inline-flex",
+                            "items-center",
+                            "gap-2",
+                            "rounded-xl",
+                            "border-2",
+                            "border-gray-900",
+                            "bg-emerald-400",
+                            "px-3",
+                            "py-2",
+                            "text-xs",
+                            "font-black",
+                            "shadow-[2px_2px_0_0_#111827]",
+                            "transition-transform",
+                            "hover:-translate-y-0.5",
+                            "cursor-pointer",
+                          )}
+                        >
+                          <Download className={cn("h-4", "w-4")} />
+                          Download
+                        </button>
+                      </>
                     )}
-                  >
-                    Asli
-                  </div>
-                  <div
-                    className={cn(
-                      "absolute",
-                      "bottom-3",
-                      "right-3",
-                      "rounded-lg",
-                      "border",
-                      "border-gray-900",
-                      "bg-purple-500",
-                      "px-2",
-                      "py-1",
-                      "text-[10px]",
-                      "font-black",
-                      "text-white",
-                    )}
-                  >
-                    Transparan AI
-                  </div>
-                </div>
-
-                {/* Slider Input Control */}
-                <div className={cn("space-y-1")}>
-                  <div className={cn("flex", "justify-between", "text-xs", "font-bold", "text-gray-500")}>
-                    <span>Sebelum</span>
-                    <span>Slider Before/After ({sliderPosition}%)</span>
-                    <span>Sesudah</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    value={sliderPosition}
-                    onChange={(e) => setSliderPosition(Number(e.target.value))}
-                    className={cn("w-full", "accent-purple-600", "cursor-pointer")}
-                  />
-                </div>
-
-                {/* Result Meta & Download */}
-                <div
-                  className={cn(
-                    "flex",
-                    "flex-col",
-                    "sm:flex-row",
-                    "items-start",
-                    "sm:items-center",
-                    "justify-between",
-                    "gap-4",
-                    "rounded-2xl",
-                    "border-2",
-                    "border-gray-900",
-                    "bg-purple-50",
-                    "p-4",
-                    "dark:bg-purple-950/20",
-                  )}
-                >
-                  <div className={cn("space-y-1")}>
-                    <p className={cn("text-xs", "font-black", "text-gray-900", "dark:text-white")}>
-                      {result.file_name}
-                    </p>
-                    <p className={cn("text-xs", "font-semibold", "text-gray-500", "dark:text-gray-400")}>
-                      {result.result_width} x {result.result_height} px &bull; {formatFileSize(result.result_size)}
-                    </p>
-                  </div>
-
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    className={cn(
-                      "flex",
-                      "items-center",
-                      "gap-2",
-                      "rounded-xl",
-                      "border-2",
-                      "border-gray-900",
-                      "bg-emerald-400",
-                      "px-5",
-                      "py-2.5",
-                      "text-xs",
-                      "font-black",
-                      "text-gray-900",
-                      "shadow-[3px_3px_0_0_#111827]",
-                      "hover:-translate-y-0.5",
-                      "hover:bg-emerald-300",
-                      "transition-all",
-                      "cursor-pointer",
-                    )}
-                  >
-                    <Download className={cn("h-4", "w-4")} />
-                    Download PNG Transparan
-                  </button>
-                </div>
-              </div>
-            )}
-          </Card>
+                  </>
+                }
+              />
+            ))}
         </div>
-      </div>
+      )}
+
+      {editingItem?.result && (
+        <BackgroundEditor
+          fileName={editingItem.result.file_name}
+          originalUrl={editingItem.previewUrl}
+          resultUrl={editingItem.result.file_url}
+          onClose={() => setEditingId(null)}
+          onSave={(blob) => handleSaveEdit(editingItem, blob)}
+        />
+      )}
     </div>
   );
 }

@@ -69,7 +69,6 @@ def main():
 
             curr_w, curr_h = im.size
 
-            # If background removal requested, apply rembg AI
             if args.remove_bg:
                 try:
                     import rembg

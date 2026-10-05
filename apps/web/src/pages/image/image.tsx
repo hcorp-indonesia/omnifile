@@ -3,17 +3,15 @@ import {
     CheckCircle2,
     Crop,
     Download,
-    FileImage,
     Image,
     Lock,
     Minimize2,
     RefreshCw,
     Sliders,
     Sparkles,
-    Upload,
     X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -26,6 +24,9 @@ import {
     type ConvertImageResult,
     type SupportedImageFormat,
 } from "@/lib/image-convert-api";
+import { ImageDropzone } from "@/pages/image/components/image-dropzone";
+import { ImageProcessingCard } from "@/pages/image/components/image-processing-card";
+
 
 type ImageToolId =
   | "image-converter"
@@ -102,7 +103,7 @@ const availableFormats: {
   { id: "png", label: "PNG", desc: "Lossless with transparent alpha", badge: "Lossless" },
   { id: "jpg", label: "JPG", desc: "Universal photo compatibility", badge: "Universal" },
   { id: "avif", label: "AVIF", desc: "Next-gen extreme compression", badge: "Next-Gen" },
-  { id: "bmp", label: "BMP", desc: "Uncompressed raw bitmap", badge: "Bitmap" },
+  { id: "jpeg", label: "JPEG", desc: "Standard JPEG photo", badge: "Standard" },
   { id: "tiff", label: "TIFF", desc: "Highest detail for print", badge: "Print" },
   { id: "ico", label: "ICO", desc: "Multi-size web favicon", badge: "Icon" },
   { id: "gif", label: "GIF", desc: "Indexed color graphic", badge: "Graphics" },
@@ -139,6 +140,7 @@ export default function ImagePage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [convertResult, setConvertResult] = useState<ConvertImageResult | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (file) {
@@ -167,6 +169,14 @@ export default function ImagePage() {
       }
       if (routeState.mediaTab === "upscale") {
         navigate("/image/upscale", { replace: true });
+        return;
+      }
+      if (routeState.mediaTab === "compress") {
+        navigate("/image/compress", { replace: true });
+        return;
+      }
+      if (routeState.mediaTab === "crop") {
+        navigate("/image/crop", { replace: true });
         return;
       }
       const targetId = routeState.mediaTab;
@@ -198,6 +208,14 @@ export default function ImagePage() {
       navigate("/image/upscale");
       return;
     }
+    if (tool.id === "compress") {
+      navigate("/image/compress");
+      return;
+    }
+    if (tool.id === "crop") {
+      navigate("/image/crop");
+      return;
+    }
     setActiveTool(tool);
     setFile(null);
     setConvertResult(null);
@@ -209,14 +227,6 @@ export default function ImagePage() {
     setFile(null);
     setConvertResult(null);
     setIsProcessing(false);
-  };
-
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      setFile(selectedFile);
-      setConvertResult(null);
-    }
   };
 
   const handleProcess = async () => {
@@ -252,12 +262,16 @@ export default function ImagePage() {
       return;
     }
 
-    // Other tools fallback placeholder
     setIsProcessing(true);
-    setTimeout(() => {
-      setIsProcessing(false);
-      toast.success(`${activeTool.title} processed successfully!`);
-    }, 1500);
+    setUploadProgress(15);
+    const progressTimer = window.setInterval(() => {
+      setUploadProgress((current) => Math.min(current + 12, 90));
+    }, 180);
+    await new Promise((resolve) => window.setTimeout(resolve, 1500));
+    window.clearInterval(progressTimer);
+    setUploadProgress(100);
+    setIsProcessing(false);
+    toast.success(`${activeTool.title} processed successfully!`);
   };
 
   return (
@@ -567,80 +581,73 @@ export default function ImagePage() {
               /* INPUT AND SETUP VIEW */
               <div className="space-y-6">
                 {/* Upload & Dropzone Area */}
-                <div className={cn(
-                  "relative",
-                  "flex",
-                  "min-h-48",
-                  "flex-col",
-                  "items-center",
-                  "justify-center",
-                  "overflow-hidden",
-                  "rounded-2xl",
-                  "border-3",
-                  "border-dashed",
-                  "border-gray-300",
-                  "bg-gray-50",
-                  "p-6",
-                  "text-center",
-                  "transition-all",
-                  "hover:border-purple-500",
-                  "dark:border-gray-700",
-                  "dark:bg-[#1e222a]",
-                )}>
-                  <input
-                    type="file"
-                    accept={activeTool.accept}
-                    onChange={handleFileChange}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                <ImageDropzone
+                  ref={fileInputRef}
+                  className={file ? "hidden" : undefined}
+                  dropzoneTitle="Click to upload or Drag & Drop image"
+                  dropzoneSubtitle="PNG, JPG, JPEG, WEBP, AVIF, BMP, TIFF, GIF (Up to 50MB)"
+                  accept={activeTool.accept}
+                  multiple={false}
+                  disabled={isProcessing}
+                  onFilesSelected={(files) => {
+                    if (files[0]) {
+                      setFile(files[0]);
+                      setConvertResult(null);
+                    }
+                  }}
+                />
+
+                {file && (
+                  <ImageProcessingCard
+                    index={0}
+                    thumbnailUrl={previewUrl ?? undefined}
+                    fileName={file.name}
+                    metadata={`${(file.size / 1024 / 1024).toFixed(2)} MB • ${isProcessing ? "Processing" : `Ready to ${activeTool.id === "compress" ? "compress" : activeTool.id === "crop" ? "crop" : "convert"}`}`}
+                    status={isProcessing ? "processing" : "pending"}
+                    progress={uploadProgress}
+                    processingLabel={
+                      activeTool.id === "compress"
+                        ? "Compressing..."
+                        : activeTool.id === "crop"
+                          ? "Preparing crop..."
+                          : "Converting..."
+                    }
+                    progressLabel={
+                      activeTool.id === "compress"
+                        ? "Optimizing image size"
+                        : activeTool.id === "crop"
+                          ? "Preparing the crop workspace"
+                          : "Converting image"
+                    }
+                    actions={
+                      !isProcessing ? (
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          className={cn(
+                            "shrink-0",
+                            "cursor-pointer",
+                            "rounded-xl",
+                            "border-2",
+                            "border-gray-900",
+                            "bg-gray-100",
+                            "px-3",
+                            "py-1.5",
+                            "text-xs",
+                            "font-bold",
+                            "hover:bg-gray-200",
+                            "dark:border-gray-700",
+                            "dark:bg-gray-800",
+                            "dark:text-white",
+                          )}
+                        >
+                          Change
+                        </button>
+                      ) : undefined
+                    }
                   />
-                  {file ? (
-                    <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-                      {previewUrl ? (
-                        <div className="relative h-24 w-24 shrink-0 overflow-hidden rounded-xl border-2 border-gray-900 bg-white p-1 shadow-[2px_2px_0_0_#111827]">
-                          <img
-                            src={previewUrl}
-                            alt="Selected upload preview"
-                            className="h-full w-full object-cover rounded-lg"
-                          />
-                        </div>
-                      ) : (
-                        <div className="flex h-14 w-14 items-center justify-center rounded-2xl border-3 border-gray-900 bg-emerald-400 shadow-[3px_3px_0_0_#111827]">
-                          <FileImage className="h-7 w-7 text-gray-900" />
-                        </div>
-                      )}
-                      <div className="text-left space-y-1">
-                        <div className="flex items-center gap-2">
-                          <p className="max-w-xs sm:max-w-md truncate text-base font-black text-gray-900 dark:text-white">
-                            {file.name}
-                          </p>
-                          <span className="rounded-md border border-gray-900 bg-yellow-300 px-1.5 py-0.5 text-[10px] font-black uppercase text-gray-900">
-                            {file.name.split('.').pop() || 'IMG'}
-                          </span>
-                        </div>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                          {(file.size / 1024 / 1024).toFixed(2)} MB &bull; Ready to convert
-                        </p>
-                        <p className="text-[11px] font-bold text-purple-600 dark:text-purple-400">
-                          Click or drag another image to replace
-                        </p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border-3 border-gray-900 bg-yellow-400 shadow-[3px_3px_0_0_#111827] transition-transform hover:scale-110">
-                        <Upload className="h-7 w-7 text-gray-900" />
-                      </div>
-                      <div>
-                        <p className="text-base font-black text-gray-900 dark:text-white">
-                          Click to upload or Drag & Drop image
-                        </p>
-                        <p className="text-xs font-semibold text-gray-500 dark:text-gray-400">
-                          PNG, JPG, JPEG, WEBP, AVIF, BMP, TIFF, GIF (Up to 50MB)
-                        </p>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                )}
+
 
                 {/* TARGET FORMAT SELECTION (Image Converter) */}
                 {activeTool.id === "image-converter" && (
@@ -760,7 +767,7 @@ export default function ImagePage() {
                           </div>
 
                           {/* Background color for non-alpha formats */}
-                          {(targetFormat === "jpg" || targetFormat === "bmp") && (
+                          {(targetFormat === "jpg" || targetFormat === "jpeg") && (
                             <div>
                               <label className="text-[11px] font-bold text-gray-600 dark:text-gray-400 block mb-1">
                                 Background Color for Transparencies
@@ -785,7 +792,9 @@ export default function ImagePage() {
                 )}
 
                 {/* Progress Indicator */}
-                {isProcessing && uploadProgress > 0 && (
+                {activeTool.id === "image-converter" &&
+                  isProcessing &&
+                  uploadProgress > 0 && (
                   <div className="space-y-1.5">
                     <div className="flex justify-between text-xs font-bold text-gray-700 dark:text-gray-300">
                       <span>Converting image...</span>
@@ -837,12 +846,20 @@ export default function ImagePage() {
                   {isProcessing ? (
                     <>
                       <RefreshCw className={cn("h-6", "w-6", "animate-spin")} />
-                      Processing Magic Conversion...
+                      {activeTool.id === "compress"
+                        ? "Compressing Image..."
+                        : activeTool.id === "crop"
+                          ? "Preparing Crop..."
+                          : "Processing Magic Conversion..."}
                     </>
                   ) : (
                     <>
                       <Sparkles className="h-5 w-5" />
-                      Convert to {targetFormat.toUpperCase()} Now
+                      {activeTool.id === "compress"
+                        ? "Compress Image"
+                        : activeTool.id === "crop"
+                          ? "Crop Image"
+                          : `Convert to ${targetFormat.toUpperCase()} Now`}
                     </>
                   )}
                 </button>

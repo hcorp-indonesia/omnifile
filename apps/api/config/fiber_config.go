@@ -69,6 +69,10 @@ func CorsConfig() fiber.Handler {
 
 	origins := os.Getenv("CORS_ALLOW_ORIGINS")
 	parsedOrigins := parse(origins)
+	exposedHeaders := os.Getenv("CORS_EXPOSE_HEADERS")
+	if exposedHeaders == "" {
+		exposedHeaders = "X-Remove-Bg-Model"
+	}
 
 	allowCredentials := true
 	hasWildcard := false
@@ -92,6 +96,7 @@ func CorsConfig() fiber.Handler {
 		AllowOrigins:     parsedOrigins,
 		AllowHeaders:     parse(os.Getenv("CORS_ALLOW_HEADERS")),
 		AllowMethods:     parse(os.Getenv("CORS_ALLOW_METHODS")),
+		ExposeHeaders:    parse(exposedHeaders),
 		AllowCredentials: allowCredentials,
 	})
 }

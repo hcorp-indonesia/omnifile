@@ -1,7 +1,7 @@
 package upscaleimage
 
 type UpscaleOptions struct {
-	Scale          int    `json:"scale" form:"scale"`                       // 2 or 4
+	Scale          int    `json:"scale" form:"scale"`                       // 1 (enhance), 2, or 4
 	OutputFormat   string `json:"output_format" form:"output_format"`       // "png", "jpg", "webp"
 	OutputFileName string `json:"output_file_name" form:"output_file_name"` // custom filename
 	FileBase64     string `json:"file_base64" form:"file_base64"`           // Optional: Direct base64 string for already converted items
@@ -18,8 +18,11 @@ type UpscaleResult struct {
 	UpscaledWidth   int    `json:"upscaled_width"`
 	UpscaledHeight  int    `json:"upscaled_height"`
 	ScaleFactor     int    `json:"scale_factor"`
+	ProcessingMode  string `json:"processing_mode"`
 	MimeType        string `json:"mime_type"`
 	FileBase64      string `json:"file_base64"`
+	OutputPath      string `json:"-"`
+	Cleanup         func() `json:"-"`
 }
 
 type UpscaleResponse struct {

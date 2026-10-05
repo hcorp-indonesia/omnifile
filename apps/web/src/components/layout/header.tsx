@@ -123,6 +123,7 @@ const imageTools = [
     icon: Minimize2,
     bg: "bg-rose-300",
     tab: "compress",
+    to: "/image/compress",
   },
   {
     title: "Crop Image",
@@ -130,6 +131,7 @@ const imageTools = [
     icon: Crop,
     bg: "bg-teal-300",
     tab: "crop",
+    to: "/image/crop",
   },
   {
     title: "Remove Background",

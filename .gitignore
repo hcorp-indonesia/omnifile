@@ -15,6 +15,23 @@ apps/api/magic-converter
 apps/api/*.exe
 apps/api/tmp/
 
+# Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+__pycache__/
+*.py[cod]
+
+# Local AI models and binaries
+tools/realesrgan-ncnn-vulkan/
+models/
+
 # OS
 .DS_Store
 Thumbs.db

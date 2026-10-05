@@ -1,9 +1,12 @@
 package removebg
 
 import (
+	"net/url"
+	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/rs/zerolog/log"
 )
 
 type RemoveBgController struct {
@@ -55,9 +58,6 @@ func (c *RemoveBgController) RemoveBackground(ctx fiber.Ctx) error {
 		opts = RemoveBgOptions{}
 	}
 
-	if opts.Model == "" {
-		opts.Model = ctx.FormValue("model", "u2netp")
-	}
 	if opts.OutputFormat == "" {
 		opts.OutputFormat = ctx.FormValue("output_format", "png")
 	}
@@ -67,15 +67,24 @@ func (c *RemoveBgController) RemoveBackground(ctx fiber.Ctx) error {
 
 	result, err := c.service.RemoveBackground(ctx.Context(), fileHeader, opts)
 	if err != nil {
+		log.Error().Err(err).Msg("AI Background Removal failed")
 		return ctx.Status(fiber.StatusInternalServerError).JSON(RemoveBgResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Background removal failed. Please try again later.",
 		})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(RemoveBgResponse{
-		Success: true,
-		Message: "Background successfully removed",
-		Data:    result,
-	})
+	defer result.Cleanup()
+	ctx.Set("Content-Type", result.MimeType)
+	ctx.Set("Content-Disposition", `attachment; filename="`+url.PathEscape(result.FileName)+`"`)
+	ctx.Set("X-Remove-Bg-Original-Format", result.OriginalFormat)
+	ctx.Set("X-Remove-Bg-Converted-Format", result.ConvertedFormat)
+	ctx.Set("X-Remove-Bg-Original-Size", strconv.FormatInt(result.OriginalSize, 10))
+	ctx.Set("X-Remove-Bg-Result-Size", strconv.FormatInt(result.ResultSize, 10))
+	ctx.Set("X-Remove-Bg-Original-Width", strconv.Itoa(result.OriginalWidth))
+	ctx.Set("X-Remove-Bg-Original-Height", strconv.Itoa(result.OriginalHeight))
+	ctx.Set("X-Remove-Bg-Width", strconv.Itoa(result.ResultWidth))
+	ctx.Set("X-Remove-Bg-Height", strconv.Itoa(result.ResultHeight))
+	ctx.Set("X-Remove-Bg-Model", result.ModelUsed)
+	return ctx.SendFile(result.OutputPath)
 }

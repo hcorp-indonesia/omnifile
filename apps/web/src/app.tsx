@@ -20,6 +20,8 @@ const DashboardPage = lazy(() => import('@/pages/dashboard'));
 const AudioPage = lazy(() => import('@/pages/audio/audio'));
 const ImagePage = lazy(() => import('@/pages/image/image'));
 const ImageConverterPage = lazy(() => import('@/pages/image/image-converter/page'));
+const CompressImagePage = lazy(() => import('@/pages/image/compress/page'));
+const CropImagePage = lazy(() => import('@/pages/image/crop/page'));
 const RemoveBgPage = lazy(() => import('@/pages/image/remove-bg/page'));
 const UpscalePage = lazy(() => import('@/pages/image/upscale/page'));
 
@@ -167,6 +169,8 @@ function AppRoutes() {
           <Route path="/audio" element={<AudioPage />} />
           <Route path="/image" element={<ImagePage />} />
           <Route path="/image/image-converter" element={<ImageConverterPage />} />
+          <Route path="/image/compress" element={<CompressImagePage />} />
+          <Route path="/image/crop" element={<CropImagePage />} />
           <Route path="/image/remove-bg" element={<RemoveBgPage />} />
           <Route path="/image/upscale" element={<UpscalePage />} />
           <Route path="/pdf" element={<PDFPage />} />

@@ -2,10 +2,12 @@ package upscaleimage
 
 import (
 	"mime/multipart"
+	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/gofiber/fiber/v3"
+	"github.com/rs/zerolog/log"
 )
 
 type UpscaleImageController struct {
@@ -31,14 +33,11 @@ func (c *UpscaleImageController) Upscale(ctx fiber.Ctx) error {
 	var fileHeader *multipart.FileHeader
 	var opts UpscaleOptions
 
-	// Check if JSON body
-	if strings.Contains(ctx.Get("Content-Type"), "application/json") {
-		if err := ctx.Bind().Body(&opts); err != nil {
-			return ctx.Status(fiber.StatusBadRequest).JSON(UpscaleResponse{
-				Success: false,
-				Message: "Invalid JSON body for upscale request",
-			})
-		}
+	if !strings.Contains(ctx.Get("Content-Type"), "multipart/form-data") {
+		return ctx.Status(fiber.StatusBadRequest).JSON(UpscaleResponse{
+			Success: false,
+			Message: "Upscaling requires an image upload using multipart form-data.",
+		})
 	} else {
 		// Multipart Form
 		fh, err := ctx.FormFile("file")
@@ -72,12 +71,9 @@ func (c *UpscaleImageController) Upscale(ctx fiber.Ctx) error {
 		if opts.OutputFileName == "" {
 			opts.OutputFileName = ctx.FormValue("output_file_name")
 		}
-		if opts.FileBase64 == "" {
-			opts.FileBase64 = ctx.FormValue("file_base64")
-		}
 	}
 
-	if fileHeader == nil && opts.FileBase64 == "" {
+	if fileHeader == nil {
 		return ctx.Status(fiber.StatusBadRequest).JSON(UpscaleResponse{
 			Success: false,
 			Message: "Please provide an image file or base64 data to upscale.",
@@ -86,15 +82,25 @@ func (c *UpscaleImageController) Upscale(ctx fiber.Ctx) error {
 
 	result, err := c.service.UpscaleImage(ctx.Context(), fileHeader, opts)
 	if err != nil {
+		log.Error().Err(err).Msg("HD Image Upscaling failed")
 		return ctx.Status(fiber.StatusInternalServerError).JSON(UpscaleResponse{
 			Success: false,
-			Message: err.Error(),
+			Message: "Image upscaling failed. Please try again later.",
 		})
 	}
 
-	return ctx.Status(fiber.StatusOK).JSON(UpscaleResponse{
-		Success: true,
-		Message: "Image successfully upscaled to HD",
-		Data:    result,
-	})
+	defer result.Cleanup()
+	ctx.Set("Content-Type", result.MimeType)
+	ctx.Set("Content-Disposition", `attachment; filename="`+url.PathEscape(result.FileName)+`"`)
+	ctx.Set("X-Upscale-Original-Format", result.OriginalFormat)
+	ctx.Set("X-Upscale-Converted-Format", result.ConvertedFormat)
+	ctx.Set("X-Upscale-Original-Size", strconv.FormatInt(result.OriginalSize, 10))
+	ctx.Set("X-Upscale-Upscaled-Size", strconv.FormatInt(result.UpscaledSize, 10))
+	ctx.Set("X-Upscale-Original-Width", strconv.Itoa(result.OriginalWidth))
+	ctx.Set("X-Upscale-Original-Height", strconv.Itoa(result.OriginalHeight))
+	ctx.Set("X-Upscale-Width", strconv.Itoa(result.UpscaledWidth))
+	ctx.Set("X-Upscale-Height", strconv.Itoa(result.UpscaledHeight))
+	ctx.Set("X-Upscale-Scale", strconv.Itoa(result.ScaleFactor))
+	ctx.Set("X-Upscale-Mode", result.ProcessingMode)
+	return ctx.SendFile(result.OutputPath)
 }
