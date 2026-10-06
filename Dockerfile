@@ -36,7 +36,9 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
+        libgl1 \
         libgomp1 \
+        libglib2.0-0 \
         libvulkan1 \
         tesseract-ocr \
         tesseract-ocr-eng \
