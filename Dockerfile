@@ -47,6 +47,9 @@ RUN apt-get update && \
         -o /tmp/realesrgan-ncnn-vulkan.zip && \
     unzip -q /tmp/realesrgan-ncnn-vulkan.zip -d /app/realesrgan-ncnn-vulkan && \
     chmod +x /app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan && \
+    mkdir -p /app/models && \
+    curl -fsSL https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth \
+        -o /app/models/RealESRGAN_x4plus.pth && \
     rm -f /tmp/realesrgan-ncnn-vulkan.zip && \
     apt-get purge -y --auto-remove curl unzip && \
     rm -rf /var/lib/apt/lists/*

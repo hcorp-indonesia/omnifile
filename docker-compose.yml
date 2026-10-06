@@ -47,7 +47,7 @@ services:
       TESSERACT_PATH: /usr/bin/tesseract
       TESSERACT_LANG: ${TESSERACT_LANG:-eng+ind}
       REALESRGAN_MODEL_PATH: /app/models/RealESRGAN_x4plus.pth
-      REALESRGAN_ENGINE: ${REALESRGAN_ENGINE:-auto}
+      REALESRGAN_ENGINE: ${REALESRGAN_ENGINE:-python}
       REALESRGAN_NCNN_PATH: /app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan
       REALESRGAN_NCNN_MODELS_PATH: /app/realesrgan-ncnn-vulkan/models
       REALESRGAN_NCNN_MODEL: ${REALESRGAN_NCNN_MODEL:-realesr-animevideov3}
