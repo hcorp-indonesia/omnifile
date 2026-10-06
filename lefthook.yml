@@ -26,7 +26,7 @@ pre-push:
       root: apps/api
       run: go test ./...
     security-scan:
-      run: trivy fs --scanners vuln,secret,config --exit-code 1 --severity HIGH,CRITICAL .
+      run: 'C:/laragon/www/marga-mulya-system/.bin/trivy/trivy.exe fs --scanners vuln,secret,config --exit-code 1 --severity HIGH,CRITICAL .'
     go-build:
       root: apps/api
       run: go build ./...
