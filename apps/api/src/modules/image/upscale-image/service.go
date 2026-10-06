@@ -391,7 +391,12 @@ func (s *UpscaleImageService) runPython(
 	}
 
 	var output pythonUpscaleOutput
-	if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+	stdoutText := strings.TrimSpace(stdout.String())
+	jsonStart := strings.LastIndex(stdoutText, "{")
+	if jsonStart < 0 {
+		return nil, fmt.Errorf("failed to parse upscaler response: JSON payload not found (output: %s)", stdoutText)
+	}
+	if err := json.Unmarshal([]byte(stdoutText[jsonStart:]), &output); err != nil {
 		return nil, fmt.Errorf("failed to parse upscaler response: %w (output: %s)", err, stdout.String())
 	}
 	if !output.Success {
