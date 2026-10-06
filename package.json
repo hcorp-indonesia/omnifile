@@ -1,8 +1,11 @@
 {
   "name": "magic-converter",
-  "private": true,
   "version": "1.0.0",
-  "type": "module",
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "lefthook": "^1.11.17"
+  },
+  "private": true,
   "scripts": {
     "dev": "concurrently -n api,web -c blue,magenta \"bun run dev:api\" \"bun run dev:web\"",
     "dev:api": "cd apps/api && go run main.go",
@@ -22,11 +25,5 @@
     "postinstall": "cd apps/web && bun install",
     "prepare": "lefthook install"
   },
-  "devDependencies": {
-    "concurrently": "^9.1.2",
-    "lefthook": "^1.11.17"
-  },
-  "dependencies": {
-    "xlsx": "^0.18.5"
-  }
+  "type": "module"
 }

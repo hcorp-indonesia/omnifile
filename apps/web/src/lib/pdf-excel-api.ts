@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
+import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
-import * as XLSX from 'xlsx';
 
 export interface SheetPreview {
   sheet_name: string;
@@ -108,17 +108,19 @@ export function downloadExcelFile(result: ExcelConversionResult) {
   }
 }
 
-export function downloadEditedExcelFile(
+export async function downloadEditedExcelFile(
   sheets: SheetPreview[],
   fileName: string,
 ) {
-  const workbook = XLSX.utils.book_new();
+  const workbook = new ExcelJS.Workbook();
   for (const sheet of sheets) {
-    const worksheet = XLSX.utils.aoa_to_sheet(sheet.rows);
-    XLSX.utils.book_append_sheet(workbook, worksheet, sheet.sheet_name.slice(0, 31));
+    const worksheet = workbook.addWorksheet(sheet.sheet_name.slice(0, 31));
+    for (const row of sheet.rows) {
+      worksheet.addRow(row);
+    }
   }
 
-  const bytes = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+  const bytes = await workbook.xlsx.writeBuffer();
   const blob = new Blob([bytes], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
