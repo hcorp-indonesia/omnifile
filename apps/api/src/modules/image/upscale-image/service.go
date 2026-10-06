@@ -366,9 +366,9 @@ func (s *UpscaleImageService) runPython(
 		"--scale", strconv.Itoa(scale),
 		"--format", targetFormat,
 		"--max-size-mb", "5.0",
-		"--max-dimension", "3840",
-		"--tile", "96",
-		"--cpu-threads", "2",
+		"--max-dimension", "2048",
+		"--tile", "32",
+		"--cpu-threads", "1",
 		"--model-path", s.modelPath,
 	}
 	cmd := exec.CommandContext(ctx, s.pythonPath, args...)
