@@ -95,9 +95,11 @@ def main():
             target_width = max(1, round(target_width * ratio))
             target_height = max(1, round(target_height * ratio))
 
+        model_variant = os.getenv("REALESRGAN_MODEL_VARIANT", "x4plus").lower()
         model = RRDBNet(
             num_in_ch=3, num_out_ch=3, num_feat=64,
-            num_block=23, num_grow_ch=32, scale=4,
+            num_block=6 if model_variant == "anime6b" else 23,
+            num_grow_ch=32, scale=4,
         )
         upsampler = RealESRGANer(
             scale=4,

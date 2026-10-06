@@ -49,7 +49,8 @@ services:
 
       TESSERACT_PATH: /usr/bin/tesseract
       TESSERACT_LANG: ${TESSERACT_LANG:-eng+ind}
-      REALESRGAN_MODEL_PATH: /app/models/RealESRGAN_x4plus.pth
+      REALESRGAN_MODEL_PATH: /app/models/RealESRGAN_x4plus_anime_6B.pth
+      REALESRGAN_MODEL_VARIANT: anime6b
       REALESRGAN_ENGINE: ${REALESRGAN_ENGINE:-python}
       REALESRGAN_NCNN_PATH: /app/realesrgan-ncnn-vulkan/realesrgan-ncnn-vulkan
       REALESRGAN_NCNN_MODELS_PATH: /app/realesrgan-ncnn-vulkan/models
@@ -58,7 +59,7 @@ services:
       REMBG_PROVIDER: cpu
       REMBG_CPU_THREADS: ${REMBG_CPU_THREADS:-4}
     volumes:
-      - model_cache:/app/models
+      - model_cache_v2:/app/models
 
 volumes:
-  model_cache:
+  model_cache_v2:
