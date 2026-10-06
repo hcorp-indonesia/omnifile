@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const loginOTPBoundary = "magic-converter-login-otp"
+const loginOTPBoundary = "omnifile-login-otp"
 
 type SMTPMailer struct {
 	host     string
@@ -83,9 +83,17 @@ func buildLoginOTPMessage(from, to, code string, validity time.Duration) ([]byte
 	}
 
 	minutes := int(validity.Minutes())
-	subject := "Your Magic Converter sign-in code"
+	brandName := "Omnifile"
+	subject := "Your Omnifile sign-in code"
+	frontendURL := strings.TrimRight(strings.TrimSpace(os.Getenv("FRONTEND_URL")), "/")
+	logoMarkup := ""
+	if frontendURL != "" {
+		logoURL := html.EscapeString(frontendURL + "/logo-trimmed.png")
+		logoMarkup = fmt.Sprintf(`<img src="%s" alt="Omnifile" width="42" height="42" style="display:block;width:42px;height:42px;border-radius:12px;object-fit:contain;">`, logoURL)
+	}
 	plainBody := fmt.Sprintf(
-		"Sign in to Magic Converter\r\n\r\nYour one-time code is: %s\r\n\r\nThis code expires in %d minutes and can only be used once. Never share this code with anyone.\r\n\r\nIf you did not request this email, you can safely ignore it.\r\n",
+		"Sign in to %s\r\n\r\nYour one-time code is: %s\r\n\r\nThis code expires in %d minutes and can only be used once. Never share this code with anyone.\r\n\r\nIf you did not request this email, you can safely ignore it.\r\n",
+		brandName,
 		code,
 		minutes,
 	)
@@ -106,32 +114,31 @@ func buildLoginOTPMessage(from, to, code string, validity time.Duration) ([]byte
             <td style="padding:28px 32px;background:#facc15;border-bottom:3px solid #111827;">
               <table role="presentation" cellspacing="0" cellpadding="0" border="0">
                 <tr>
-                  <td style="width:42px;height:42px;background:#111827;color:#ffffff;border-radius:12px;text-align:center;font-size:22px;font-weight:800;">M</td>
-                  <td style="padding-left:14px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Magic Converter</td>
+                  <td style="width:42px;height:42px;background:#ffffff;border-radius:12px;text-align:center;">%s</td>
+                  <td style="padding-left:14px;font-size:20px;font-weight:800;letter-spacing:-0.3px;">Omnifile</td>
                 </tr>
               </table>
             </td>
           </tr>
           <tr>
             <td style="padding:36px 32px 32px;">
-              <div style="display:inline-block;padding:6px 12px;background:#d8b4fe;border:2px solid #111827;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;">Secure sign-in</div>
               <h1 style="margin:22px 0 10px;font-size:28px;line-height:1.2;letter-spacing:-0.6px;">Your sign-in code</h1>
-              <p style="margin:0;color:#4b5563;font-size:15px;line-height:1.7;">Enter this one-time code in Magic Converter to complete your sign-in.</p>
+              <p style="margin:0;color:#4b5563;font-size:15px;line-height:1.7;">Enter this one-time code in Omnifile to complete your sign-in.</p>
               <div style="margin:28px 0;padding:20px 16px;background:#f3e8ff;border:3px solid #111827;border-radius:16px;text-align:center;font-family:'Courier New',monospace;font-size:36px;line-height:1;font-weight:800;letter-spacing:10px;color:#111827;">%s</div>
               <p style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#374151;"><strong>This code expires in %d minutes</strong> and can only be used once.</p>
-              <p style="margin:0;padding:14px 16px;background:#fef3c7;border-left:4px solid #f59e0b;font-size:13px;line-height:1.6;color:#78350f;"><strong>Security reminder:</strong> Magic Converter will never ask you to share this code.</p>
+              <p style="margin:0;padding:14px 16px;background:#fef3c7;border-left:4px solid #f59e0b;font-size:13px;line-height:1.6;color:#78350f;"><strong>Security reminder:</strong> Omnifile will never ask you to share this code.</p>
             </td>
           </tr>
           <tr>
             <td style="padding:20px 32px;border-top:2px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:1.6;">If you did not request this code, you can safely ignore this email. No account changes have been made.</td>
           </tr>
         </table>
-        <p style="margin:24px 0 0;color:#9ca3af;font-size:11px;">This is an automated security email from Magic Converter.</p>
+        <p style="margin:24px 0 0;color:#9ca3af;font-size:11px;">This is an automated security email from Omnifile.</p>
       </td>
     </tr>
   </table>
 </body>
-</html>`, html.EscapeString(subject), html.EscapeString(code), minutes, html.EscapeString(code), minutes)
+</html>`, html.EscapeString(subject), html.EscapeString(code), minutes, logoMarkup, html.EscapeString(code), minutes)
 
 	message := "From: " + from + "\r\n" +
 		"To: " + to + "\r\n" +
