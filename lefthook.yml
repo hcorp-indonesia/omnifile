@@ -1,5 +1,14 @@
-# Lefthook Git Hooks Configuration
-# https://github.com/evilmartians/lefthook
+assert_lefthook_installed: true
+
+pre-commit:
+  parallel: true
+  commands:
+    lint-web:
+      root: apps/web
+      run: bunx oxlint
+    lint-api:
+      root: apps/api
+      run: go fmt ./... && go vet ./...
 
 pre-push:
   parallel: true
@@ -13,6 +22,9 @@ pre-push:
     lint-api:
       root: apps/api
       run: go fmt ./... && go vet ./...
+    test-api:
+      root: apps/api
+      run: go test ./...
     security-scan:
       run: trivy fs --scanners vuln,secret,config --exit-code 1 --severity HIGH,CRITICAL .
     go-build:

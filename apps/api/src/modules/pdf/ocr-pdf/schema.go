@@ -1,7 +1,7 @@
 package ocrpdf
 
 type OcrPdfOptions struct {
-	Language       string `json:"language" form:"language"`               // "eng+ind", "ind", "eng"
+	Language       string `json:"language" form:"language"`                 // "eng+ind", "ind", "eng"
 	OutputFileName string `json:"output_file_name" form:"output_file_name"` // e.g. "document_ocr.pdf"
 }
 

@@ -11,15 +11,19 @@
     "lint": "concurrently \"bun run lint:api\" \"bun run lint:web\"",
     "lint:api": "cd apps/api && go fmt ./... && go vet ./...",
     "lint:web": "cd apps/web && bunx oxlint",
+    "lint:all": "bun run lint:web && bun run lint:api",
+    "test:api": "cd apps/api && go test ./...",
     "scan": "trivy fs --scanners vuln,secret,config .",
     "type-check": "cd apps/web && bunx tsc --noEmit",
     "migrate": "cd apps/api && go run db/migrations/migrate.go",
     "seed": "cd apps/api && go run db/migrations/migrate.go --seed",
     "seed:auth": "cd apps/api && go run db/migrations/migrate.go --seed=auth",
     "migrate:seed": "bun run seed",
-    "postinstall": "cd apps/web && bun install"
+    "postinstall": "cd apps/web && bun install",
+    "prepare": "lefthook install"
   },
   "devDependencies": {
-    "concurrently": "^9.1.2"
+    "concurrently": "^9.1.2",
+    "lefthook": "^1.11.17"
   }
 }

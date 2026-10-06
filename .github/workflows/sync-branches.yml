@@ -1,0 +1,53 @@
+name: Sync Branches with Staging
+
+on:
+  push:
+    branches:
+      - staging
+
+permissions:
+  contents: write
+
+jobs:
+  sync-branches:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Sync all dev-* branches
+        run: |
+          # 1. Find all remote branches starting with "dev-"
+          BRANCHES=$(git ls-remote --heads origin | awk -F'refs/heads/' '{print $2}' | grep '^dev-')
+
+          if [ -z "$BRANCHES" ]; then
+            echo "No branches starting with 'dev-' were found."
+            exit 0
+          fi
+
+          for BRANCH in $BRANCHES; do
+            echo "=========================================="
+            echo "Starting sync for branch: $BRANCH"
+            
+            # Switch to the target branch and ensure it is up to date
+            git checkout $BRANCH
+            git pull origin $BRANCH
+            
+            # Attempt to merge staging into the target branch
+            if git merge origin/staging --no-edit; then
+              # If successful without conflicts, push to remote
+              git push origin $BRANCH
+              echo "Successfully synced staging into $BRANCH"
+            else
+              # If a merge conflict occurs, abort the merge to prevent the action from failing entirely
+              echo "Merge conflict detected on $BRANCH! Please resolve manually."
+              git merge --abort
+            fi
+          done
