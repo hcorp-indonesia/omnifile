@@ -1,4 +1,5 @@
 import PageLoader from '@/components/common/page-loader';
+import SeoManager from '@/components/common/seo-manager';
 import MainLayout from '@/components/layout/main-layout';
 import { cn } from '@/lib/utils';
 import { useThemeStore } from '@/store/theme-store';
@@ -230,6 +231,7 @@ export const App: React.FC = () => {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
+        <SeoManager />
         <Suspense fallback={<PageLoader />}>
           <AppRoutes />
         </Suspense>

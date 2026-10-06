@@ -1,0 +1,17 @@
+{
+  "name": "Omnifile",
+  "short_name": "Omnifile",
+  "description": "All-in-one online PDF, image, and audio toolkit.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#facc15",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "sizes": "1254x1254",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

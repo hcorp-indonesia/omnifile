@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /login
+Disallow: /api/
+
+Sitemap: https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/sitemap.xml

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/</loc><priority>1.0</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-jpg</loc><priority>1.0</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-jpeg</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-png</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-webp</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-avif</loc><priority>0.7</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-word</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/pdf-to-excel</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/merge-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/split-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/remove-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/compress-pdf</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/pdf/ocr-pdf</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image/image-converter</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image/compress</loc><priority>0.8</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image/crop</loc><priority>0.7</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image/remove-bg</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/image/upscale</loc><priority>0.9</priority></url>
+  <url><loc>https://app-omnifile-tzsvam-1519bc-104-234-26-22.sslip.io/audio</loc><priority>0.8</priority></url>
+</urlset>
